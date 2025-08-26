@@ -122,7 +122,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="(row, idx) in csvData.slice(0,10)" :key="idx" class="hover:bg-gray-50 transition-colors">
+                  <tr v-for="(row, idx) in csvData.slice(0, 10)" :key="idx" class="hover:bg-gray-50 transition-colors">
                     <td v-for="col in columns" :key="col" class="text-gray-600">{{ row[col] }}</td>
                   </tr>
                 </tbody>
@@ -232,8 +232,11 @@ export default {
       rowsToProcess: [],
       isProcessing: false,
       processedCount: 0,
+      regexProcessedCount: 0,
+      apiProcessedCount: 0,
+      apiErrorCount: 0,
       error: "",
-      batchSize: 5, // adjust if needed
+      batchSize: 5,
     };
   },
   methods: {
@@ -249,61 +252,195 @@ export default {
           this.columns = results.meta.fields;
           this.rowsToProcess = this.csvData.filter((row) => row["Title"]);
           this.processedCount = 0;
+          this.regexProcessedCount = 0;
+          this.apiProcessedCount = 0;
+          this.apiErrorCount = 0;
         },
         error: (err) => {
           this.error = "CSV Parse error: " + err.message;
         },
       });
     },
+
+    extractQuantityFromTitle(title) {
+      if (!title || typeof title !== 'string') {
+        return null;
+      }
+
+      // High confidence patterns (priority order)
+      const highConfidencePatterns = [
+        /Pack of (\d+)/i,
+        /\(Pack of (\d+)\)/i,
+        /(\d+)-Pack/i,
+        /(\d+) Pack(?!\s*(?:oz|ml|mg|g|lb|fl|ounce|inches?))/i,
+        /(\d+) Count/i,
+        /(\d+)-Count/i,
+        /\((\d+) Pack\)/i,
+      ];
+
+      // Medium confidence patterns
+      const mediumConfidencePatterns = [
+        /(\d+) ea\b/i,
+        /(\d+) ct\b/i,
+        /(\d+) Bars?\b/i,
+        /(\d+) Bottles?\b/i,
+        /(\d+) Drops?\b/i,
+        /(\d+) Tablets?\b/i,
+        /(\d+) Capsules?\b/i,
+        /(\d+) Count\b/i,
+        /(\d+)-ea\b/i,
+        /(\d+) Each\b/i,
+        /(\d+) Units?\b/i,
+        /(\d+) Pieces?\b/i,
+        /Set of (\d+)/i,
+        /(\d+) Kit/i,
+      ];
+
+      // Word number mappings
+      const wordNumbers = {
+        'twin pack': 2,
+        'double pack': 2,
+        'triple pack': 3,
+        'dozen': 12,
+        'half dozen': 6,
+        'pair': 2,
+        'set of two': 2,
+        'set of three': 3,
+        'set of four': 4,
+        'set of five': 5,
+        'set of six': 6,
+      };
+
+      // Check high confidence first
+      for (const pattern of highConfidencePatterns) {
+        const match = title.match(pattern);
+        if (match) {
+          const qty = parseInt(match[1], 10);
+          if (!isNaN(qty) && qty > 0 && qty <= 1000) {
+            return qty;
+          }
+        }
+      }
+
+      // Check medium confidence
+      for (const pattern of mediumConfidencePatterns) {
+        const match = title.match(pattern);
+        if (match) {
+          const qty = parseInt(match[1], 10);
+          if (!isNaN(qty) && qty > 0 && qty <= 1000) {
+            return qty;
+          }
+        }
+      }
+
+      // Check word numbers
+      const lowerTitle = title.toLowerCase();
+      for (const [phrase, qty] of Object.entries(wordNumbers)) {
+        if (lowerTitle.includes(phrase)) {
+          return qty;
+        }
+      }
+
+      return null;
+    },
+
     async startProcessing() {
       this.error = "";
       this.isProcessing = true;
       this.processedCount = 0;
+      this.regexProcessedCount = 0;
+      this.apiProcessedCount = 0;
+      this.apiErrorCount = 0;
+
       try {
         for (let i = 0; i < this.rowsToProcess.length; i += this.batchSize) {
           const batch = this.rowsToProcess.slice(i, i + this.batchSize);
+
           await Promise.all(
             batch.map(async (row) => {
               try {
-                const qty = await this.getPackageQuantity(row["Title"]);
-                row["Package Quantity"] = qty;
+                // First try regex extraction
+                const regexQuantity = this.extractQuantityFromTitle(row["Title"]);
+
+                if (regexQuantity !== null) {
+                  // Successfully extracted with regex
+                  row["Package Quantity"] = regexQuantity;
+                  this.regexProcessedCount++;
+                  console.log(`Regex extracted: "${row["Title"]}" -> ${regexQuantity}`);
+                } else {
+                  // Fallback to API
+                  console.log(`Sending to API: "${row["Title"]}"`);
+                  const apiQuantity = await this.getPackageQuantityFromAPI(row["Title"]);
+                  row["Package Quantity"] = apiQuantity;
+                  this.apiProcessedCount++;
+                  console.log(`API result: "${row["Title"]}" -> ${apiQuantity}`);
+                }
               } catch (err) {
+                console.error("Error processing row:", {
+                  title: row["Title"],
+                  error: err,
+                  errorMessage: err.message || 'Unknown error',
+                  errorDetails: err.error || err
+                });
+                this.apiErrorCount++;
                 row["Package Quantity"] = 1; // fallback
               }
               this.processedCount++;
             })
           );
+
+          // Small delay between batches to avoid rate limiting
+          if (i + this.batchSize < this.rowsToProcess.length) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
         }
       } catch (err) {
         this.error = "Processing error: " + err.message;
+        console.error("Main processing error:", err);
       }
       this.isProcessing = false;
+
+      console.log(`Processing complete! 
+        Regex: ${this.regexProcessedCount}
+        API: ${this.apiProcessedCount}
+        API Errors: ${this.apiErrorCount}
+        Total: ${this.processedCount}`);
     },
-    async getPackageQuantity(title) {
-      const prompt = `
-            You are a data extraction assistant. 
-            Your task is to determine the package quantity (number of units/items) from the product title.  
 
-            Rules: 
-            - Return only a single integer. 
-            - If the title contains a number (e.g., "Pack of 3", "3 x 50ml", "2-Count"), use that number.  
-            - If the title contains a number in words (e.g., "Twin Pack" = 2, "Dozen" = 12, "Set of Four" = 4), convert it to an integer.  
-            - If multiple numbers are present, choose the one that represents the package quantity, not size or volume (e.g., "3 x 50ml" → 3, not 50).  
-            - If the title does not clearly indicate multiple items, return 1.  
+    async getPackageQuantityFromAPI(title) {
+      try {
+        if (!title || typeof title !== 'string') {
+          console.warn('Invalid title passed to API:', title);
+          return 1;
+        }
 
-            Product title: "${title}"`;
+        const prompt = `You are a data extraction assistant. Your task is to determine the package quantity (number of units/items) from the product title.
+
+        Rules: 
+        - Return only a single integer. 
+        - If the title contains a number (e.g., "Pack of 3", "3 x 50ml", "2-Count"), use that number.  
+        - If the title contains a number in words (e.g., "Twin Pack" = 2, "Dozen" = 12, "Set of Four" = 4), convert it to an integer.  
+        - If multiple numbers are present, choose the one that represents the package quantity, not size or volume (e.g., "3 x 50ml" → 3, not 50).  
+        - If the title does not clearly indicate multiple items, return 1.  
+
+        Product title: "${title}"`;
+
+        const response = await window.puter.ai.chat(prompt, {
+          model: "claude-3-5-sonnet",
+        });
 
 
-      // Use Puter.js Claude Sonnet 3.5 (or 3.7/4 if available)
-      const response = await window.puter.ai.chat(prompt, {
-        model: "claude-3-5-sonnet",
-      });
+        const text = response.message?.content?.[0]?.text?.trim() || "";
+        const qty = parseInt(text, 10);
 
-      const text = response.message?.content?.[0]?.text?.trim() || "";
-      const qty = parseInt(text, 10);
-      console.log(qty);
-      return isNaN(qty) ? 1 : qty;
+        return isNaN(qty) ? 1 : qty;
+      }
+      catch (err) {
+        console.error("API error:", err);
+        throw err;
+      }
     },
+
     downloadCSV() {
       const csv = Papa.unparse(this.csvData);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
