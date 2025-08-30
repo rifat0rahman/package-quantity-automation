@@ -102,7 +102,7 @@
 
           <!-- Preview Section -->
           <div v-if="csvData.length" class="mb-8">
-            <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-4">
               <div class="flex items-center gap-3">
                 <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
                   <i class="fas fa-table text-purple-600"></i>
@@ -110,11 +110,24 @@
                 <h3 class="text-xl font-bold text-gray-800">Data Preview</h3>
                 <div class="badge badge-primary text-white">{{ csvData.length }} rows</div>
               </div>
-              <button @click="startProcessing" :disabled="isProcessing || processedCount > 0"
-                class="btn btn-primary btn-md gap-2 px-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 text-white ml-4">
-                <i class="fas fa-rocket"></i>
-                Start AI Processing
-              </button>
+              <div class="flex items-center gap-3">
+                <button @click="startProcessing" :disabled="isProcessing || processedCount > 0"
+                  class="btn btn-primary btn-md gap-2 px-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 text-white">
+                  <i class="fas fa-rocket"></i>
+                  Start AI Processing
+                </button>
+                <button v-if="isProcessing" @click="cancelProcessingRun" class="btn btn-error btn-md text-white gap-2">
+                  <i class="fas fa-stop-circle"></i> Cancel
+                </button>
+                <button v-if="!isProcessing && processedCount > 0 && processedCount < rowsToProcess.length"
+                  @click="resumeProcessing" class="btn btn-warning btn-md text-white gap-2">
+                  <i class="fas fa-play"></i> Resume
+                </button>
+                <button v-if="!isProcessing && processedCount === rowsToProcess.length && rowsToProcess.length"
+                  @click="restartProcessing" class="btn btn-outline btn-md gap-2">
+                  <i class="fas fa-undo"></i> Re-run
+                </button>
+              </div>
             </div>
 
             <div class="overflow-x-auto rounded-xl bg-white shadow-sm" style="position:relative;">
@@ -154,8 +167,49 @@
                 <tbody>
                   <tr v-for="(row, idx) in paginatedFilteredData" :key="idx" class="hover:bg-blue-50 transition-colors">
                     <td v-for="col in columns" :key="col" class="text-gray-600">
-                      <span v-if="isLink(row[col])">
-                        <a :href="row[col]" target="_blank" class="text-blue-600 underline">{{ row[col] }}</a>
+                      <!-- Only Package Quantity is editable -->
+                      <div v-if="col === 'Package Quantity'" class="w-full flex items-center justify-center">
+                        <!-- Display Mode -->
+                        <div v-if="!isEditingCell(row, col)" @click.stop="enterEdit(row, col)" class="px-2 py-1 rounded cursor-pointer select-none transition
+           hover:bg-blue-100 hover:text-blue-700 font-medium tracking-wide
+           min-w-[3rem] text-center" :title="'Click to edit ' + col">
+                          {{ formatPackageQuantity(row[col]) }}
+                        </div>
+
+                        <!-- Edit Mode -->
+                        <div v-else class="flex items-center gap-1">
+                          <input ref="activeEditor" v-model="editValue" @keydown.enter.prevent="commitEdit()"
+                            @keydown.esc.prevent="cancelEdit" @keydown.arrow-up.prevent="stepEdit(1)"
+                            @keydown.arrow-down.prevent="stepEdit(-1)" @blur="commitEdit" type="text"
+                            inputmode="numeric"
+                            class="input input-xs input-bordered w-20 text-center font-semibold tracking-wide"
+                            :placeholder="row[col] ? row[col] : '1'" />
+                          <div class="flex flex-col -space-y-0.5">
+                            <button type="button" class="btn btn-[6px] btn-ghost p-0 h-3 leading-none"
+                              style="min-height:0;height:14px;" @mousedown.prevent="stepEdit(1)" :title="'Increase'">
+                              <i class="fas fa-chevron-up text-[10px]"></i>
+                            </button>
+                            <button type="button" class="btn btn-[6px] btn-ghost p-0 h-3 leading-none"
+                              style="min-height:0;height:14px;" @mousedown.prevent="stepEdit(-1)" :title="'Decrease'">
+                              <i class="fas fa-chevron-down text-[10px]"></i>
+                            </button>
+                          </div>
+                          <button type="button" class="btn btn-ghost btn-xs text-green-600"
+                            @mousedown.prevent="commitEdit" :title="'Save'">
+                            <i class="fas fa-check"></i>
+                          </button>
+                          <button type="button" class="btn btn-ghost btn-xs text-red-500"
+                            @mousedown.prevent="cancelEdit" :title="'Cancel'">
+                            <i class="fas fa-times"></i>
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- Non-editable cells -->
+                      <span v-else-if="isLink(row[col])">
+                        <a :href="row[col]" target="_blank" class="text-blue-600 underline">
+                          {{ row[col] }}
+                        </a>
                       </span>
                       <span v-else>{{ row[col] }}</span>
                     </td>
@@ -167,10 +221,7 @@
             <div class="mt-4 flex justify-center gap-2">
               <button class="btn btn-warning text-white btn-sm" @click="showMoreRows"
                 v-if="visibleRows < filteredData.length">
-                See More ({{ filteredData.length - visibleRows }} left)
-              </button>
-              <button class="btn btn-info text-white btn-sm" @click="resetRows" v-if="visibleRows > defaultVisibleRows">
-                Reset Rows
+                See More
               </button>
             </div>
 
@@ -184,26 +235,37 @@
           </div>
 
           <!-- Progress Section -->
-          <div v-if="isProcessing" class="my-8">
+          <div v-if="rowsToProcess.length && (isProcessing || processedCount > 0)" class="my-8">
             <div class="text-center mb-4">
               <div class="flex items-center justify-center gap-3 mb-4">
                 <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <i class="fas fa-cog fa-spin text-orange-600"></i>
+                  <i :class="['fas', isProcessing ? 'fa-cog fa-spin' : 'fa-check-circle', 'text-orange-600']"></i>
                 </div>
-                <h3 class="text-xl font-bold text-gray-800">Processing Your Data</h3>
+                <h3 class="text-xl font-bold text-gray-800">
+                  {{ isProcessing ? 'Processing Your Data' : 'Processing Complete' }}
+                </h3>
               </div>
-              <p class="text-gray-600">AI is analyzing product titles and extracting package quantities...</p>
+              <p class="text-gray-600" v-if="isProcessing">
+                AI is analyzing product titles and extracting package quantities...
+              </p>
+              <p v-else class="text-gray-600">
+                Finished: {{ processedCount }} rows processed.
+              </p>
             </div>
             <div class="max-w-md mx-auto">
               <progress class="progress progress-primary w-full h-4 mb-3" :value="processedCount"
                 :max="rowsToProcess.length"></progress>
               <div class="flex justify-between text-sm">
                 <span class="text-gray-500">Progress</span>
-                <span class="text-primary font-semibold">{{ processedCount }} / {{ rowsToProcess.length }} rows</span>
+                <span class="text-primary font-semibold">
+                  {{ processedCount }} / {{ rowsToProcess.length }} ({{ percentDone }}%)
+                </span>
+              </div>
+              <div class="text-xs text-gray-500 mt-1">
+                Regex classification count: {{ regexProcessedCount }}
               </div>
             </div>
-            <!-- Processing animation -->
-            <div class="flex justify-center mt-6">
+            <div class="flex justify-center mt-6" v-if="isProcessing">
               <div class="flex gap-2">
                 <div class="w-3 h-3 bg-blue-500 rounded-full animate-bounce"></div>
                 <div class="w-3 h-3 bg-purple-500 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
@@ -240,10 +302,11 @@ export default {
       columns: [],
       rowsToProcess: [],
       isProcessing: false,
+      cancelProcessing: false,
       processedCount: 0,
       regexProcessedCount: 0,
       error: "",
-      batchSize: 5,
+      batchSize: 50, // increased default for efficiency
       filterTimeout: null,
       filterOperators: {},
       filterValues: {},
@@ -251,12 +314,26 @@ export default {
       sortKey: "",
       sortOrder: "",
       visibleRows: 50,
-      defaultVisibleRows:5,
+      defaultVisibleRows: 50,
+      config: {
+        treatBareNumberPackAsMultipack: false,
+        maxReasonablePackageQty: 200
+      },
+      // Inline editing state
+      editing: {
+        row: null,
+        col: null
+      },
+      editValue: ""
     };
   },
   computed: {
     paginatedFilteredData() {
       return this.filteredData.slice(0, this.visibleRows);
+    },
+    percentDone() {
+      if (!this.rowsToProcess.length) return 0;
+      return ((this.processedCount / this.rowsToProcess.length) * 100).toFixed(1);
     }
   },
   methods: {
@@ -265,7 +342,7 @@ export default {
       const file = e.target.files[0];
       if (!file) return;
 
-      // Clear previous data before parsing new file
+      // Reset state
       this.csvData = [];
       this.columns = [];
       this.rowsToProcess = [];
@@ -277,10 +354,9 @@ export default {
       this.sortKey = "";
       this.sortOrder = "";
       this.visibleRows = this.defaultVisibleRows;
-
-      // Remove previous localStorage
-      localStorage.removeItem("csvData");
-      localStorage.removeItem("columns");
+      this.cancelEdit();
+      this.cancelProcessing = false;
+      this.isProcessing = false;
 
       Papa.parse(file, {
         header: true,
@@ -288,13 +364,18 @@ export default {
         complete: (results) => {
           this.csvData = results.data;
           this.columns = results.meta.fields;
+
+          if (!this.columns.includes("Package Quantity")) {
+            this.columns.push("Package Quantity");
+            this.csvData.forEach(r => { if (r["Package Quantity"] === undefined) r["Package Quantity"] = ""; });
+          }
+          if (!this.columns.includes("Unit Count")) {
+            this.columns.push("Unit Count");
+            this.csvData.forEach(r => { if (r["Unit Count"] === undefined) r["Unit Count"] = ""; });
+          }
+
           this.rowsToProcess = this.csvData.filter((row) => row["Title"]);
 
-          // Store in localStorage
-          localStorage.setItem("csvData", JSON.stringify(this.csvData));
-          localStorage.setItem("columns", JSON.stringify(this.columns));
-
-          // Setup filter defaults
           this.columns.forEach(col => {
             this.filterOperators[col] = this.isNumericColumn(col) ? '>' : '';
             this.filterValues[col] = '';
@@ -308,129 +389,242 @@ export default {
       });
     },
 
-    extractQuantityFromTitle(title) {
+    classifyTitle(title) {
       if (!title || typeof title !== 'string') {
-        return null;
+        return { packageQuantity: 1, unitCount: null };
       }
-      // High confidence patterns (priority order)
-      const highConfidencePatterns = [
-        /Pack of (\d+)/i,
-        /\(Pack of (\d+)\)/i,
-        /(\d+)-Pack/i,
-        /(\d+) Pack(?!\s*(?:oz|ml|mg|g|lb|fl|ounce|inches?))/i,
-        /(\d+) Count/i,
-        /(\d+)-Count/i,
-        /\((\d+) Pack\)/i,
-      ];
-      // Medium confidence patterns
-      const mediumConfidencePatterns = [
-        /(\d+) ea\b/i,
-        /(\d+) ct\b/i,
-        /(\d+) Bars?\b/i,
-        /(\d+) Bottles?\b/i,
-        /(\d+) Drops?\b/i,
-        /(\d+) Tablets?\b/i,
-        /(\d+) Capsules?\b/i,
-        /(\d+) Count\b/i,
-        /(\d+)-ea\b/i,
-        /(\d+) Each\b/i,
-        /(\d+) Units?\b/i,
-        /(\d+) Pieces?\b/i,
-        /Set of (\d+)/i,
-        /(\d+) Kit/i,
-      ];
-      // Word number mappings
-      const wordNumbers = {
-        'twin pack': 2,
-        'double pack': 2,
-        'triple pack': 3,
-        'dozen': 12,
-        'half dozen': 6,
-        'pair': 2,
-        'set of two': 2,
-        'set of three': 3,
-        'set of four': 4,
-        'set of five': 5,
-        'set of six': 6,
+      const lower = title.toLowerCase();
+
+      const multipackWordNumbers = {
+        twin: 2, double: 2, duo: 2, triple: 3, triplet: 3, quad: 4, quadruple: 4
       };
-      for (const pattern of highConfidencePatterns) {
-        const match = title.match(pattern);
-        if (match) {
-          const qty = parseInt(match[1], 10);
-          if (!isNaN(qty) && qty > 0 && qty <= 1000) {
-            return qty;
+
+      const unitContentWords = [
+        "count", "ct", "tablet", "tablets", "capsule", "capsules", "caplet", "caplets", "softgel", "softgels",
+        "gummy", "gummies", "drop", "drops", "wipe", "wipes", "pad", "pads", "liner", "liners", "tampon", "tampons",
+        "crayon", "crayons", "pencil", "pencils", "marker", "markers", "tip", "tips", "filter", "filters", "roll", "rolls",
+        "sponge", "sponges", "sheet", "sheets", "strip", "strips", "stick", "sticks", "bar", "bars", "sachet", "sachets",
+        "packet", "packets", "pouch", "pouches", "serving", "servings", "teaspoon", "teaspoons", "underpad", "underpads",
+        "cartridge", "cartridges", "lancet", "lancets", "batteries", "battery", "pairs", "pair"
+      ];
+
+      const partNumberMarkers = [
+        "mfrpartno", "partno", "part#", "model", "model#", "sku", "asin", "upc", "mpn", "mfr", "manufacturer", "item#"
+      ];
+
+      const multiPackIndicators = [];
+      const unitCountCandidates = [];
+
+      const MAX_QTY = this.config?.maxReasonablePackageQty ?? 200;
+      const HIGH_SANITY_LIMIT = 50; // tighter sanity threshold
+
+      // 1. Explicit "pack of N"
+      const packOfRegex = /\bpack\s+of\s+(\d+)\b/i;
+      const packOfMatch = title.match(packOfRegex);
+      if (packOfMatch) {
+        const n = +packOfMatch[1];
+        if (n > 0 && n <= MAX_QTY) multiPackIndicators.push({ value: n, type: "pack_of" });
+      }
+
+      // 2. N-pack variants
+      const nPackRegex = /\b(\d+)\s*-?\s*pack(s)?\b/gi;
+      let nMatch;
+      while ((nMatch = nPackRegex.exec(title)) !== null) {
+        const n = +nMatch[1];
+        if (n > 0 && n <= MAX_QTY) multiPackIndicators.push({ value: n, type: "n_pack" });
+      }
+
+      // 3. Word-based
+      const wordPackRegex = new RegExp("\\b(" + Object.keys(multipackWordNumbers).join("|") + ")\\s+pack\\b", "i");
+      const wordPackMatch = title.match(wordPackRegex);
+      if (wordPackMatch) {
+        const val = multipackWordNumbers[wordPackMatch[1].toLowerCase()];
+        if (val > 0 && val <= MAX_QTY) multiPackIndicators.push({ value: val, type: "word_pack" });
+      }
+
+      // 4. Exclusions: dimensions/resolutions & part numbers
+      const resolutionContextWords = /(display|screen|monitor|resolution|touchscreen|laptop|notebook|camera|pixel|px)\b/;
+      const resolutionLike = /\b(\d{3,5})\s*[x×]\s*(\d{3,5})\b/i;
+      const isResolution = resolutionLike.test(lower) && resolutionContextWords.test(lower);
+
+      // detect presence of part number marker near a big x-pattern token
+      const hasPartNumberMarker = partNumberMarkers.some(m => lower.includes(m));
+
+      // 5. Safer x-pattern (integer x integer), only if NOT a resolution or partnumber context
+      // Allow a small outer dimension (<= MAX_QTY) OR explicit suffix
+      const packXPattern = /\b(\d+)\s*[x×]\s*(\d+)(?:\s*(count|ct|pack|packs|pk|pks))?\b/gi;
+      if (!isResolution) {
+        let xp;
+        while ((xp = packXPattern.exec(lower)) !== null) {
+          const outer = +xp[1];
+          const inner = +xp[2];
+          const suffix = xp[3];
+
+          // Reject if looks like model/part number pair (very large) or partnumber marker present
+          if (outer >= 1000 || inner >= 1000) continue;
+          if (hasPartNumberMarker && (outer > 50 || inner > 50) && !suffix) continue;
+
+          // Reject if outer has 4+ digits (already covered above) or ratio suggests a resolution (outer>=200 && inner>=200)
+          if ((outer >= 200 && inner >= 200) && !suffix) continue;
+
+          if (outer > 0 && outer <= MAX_QTY) {
+            multiPackIndicators.push({ value: outer, type: "x_pattern" });
+            if (suffix) {
+              // treat inner as per-unit count only when suffix shows it's a pack-like context
+              if (inner > 0) unitCountCandidates.push({ value: inner });
+            }
           }
         }
       }
-      for (const pattern of mediumConfidencePatterns) {
-        const match = title.match(pattern);
-        if (match) {
-          const qty = parseInt(match[1], 10);
-          if (!isNaN(qty) && qty > 0 && qty <= 1000) {
-            return qty;
-          }
+
+      // 6. Unit count words
+      const unitRegex = new RegExp("\\b(\\d{1,5})\\s*(" + unitContentWords.join("|") + ")\\b", "gi");
+      let uc;
+      while ((uc = unitRegex.exec(lower)) !== null) {
+        const val = +uc[1];
+        if (val > 0) unitCountCandidates.push({ value: val });
+      }
+
+      // Determine packageQuantity vs unitCount
+      let packageQuantity = 1;
+      let unitCount = null;
+
+      if (multiPackIndicators.length) {
+        const priority = { pack_of: 1, x_pattern: 2, n_pack: 3, word_pack: 4 };
+        multiPackIndicators.sort((a, b) => priority[a.type] - priority[b.type]);
+
+        const chosen = multiPackIndicators[0];
+
+        if (chosen.type === "n_pack" &&
+          !this.config?.treatBareNumberPackAsMultipack &&
+          unitCountCandidates.length === 0 &&
+          multiPackIndicators.length === 1) {
+          unitCount = chosen.value;
+          packageQuantity = 1;
+        } else {
+          packageQuantity = chosen.value;
         }
       }
-      const lowerTitle = title.toLowerCase();
-      for (const [phrase, qty] of Object.entries(wordNumbers)) {
-        if (lowerTitle.includes(phrase)) {
-          return qty;
-        }
+
+      if (unitCount == null && unitCountCandidates.length) {
+        unitCountCandidates.sort((a, b) => b.value - a.value);
+        unitCount = unitCountCandidates[0].value;
       }
-      return 1;
+
+      // Sanity demotions
+      if (packageQuantity > HIGH_SANITY_LIMIT &&
+        !['pack_of', 'n_pack', 'word_pack'].includes(multiPackIndicators[0]?.type)) {
+        packageQuantity = 1;
+      }
+      if (packageQuantity > MAX_QTY) {
+        packageQuantity = 1;
+      }
+
+      return { packageQuantity, unitCount };
     },
 
-    async startProcessing() {
+    startProcessing() {
+      if (this.isProcessing) return;
+      if (!this.rowsToProcess.length) {
+        this.rowsToProcess = this.csvData.filter(r => r["Title"]);
+        if (!this.rowsToProcess.length) return;
+      }
       this.error = "";
+      this.cancelProcessing = false;
       this.isProcessing = true;
+      // If re-run, reset counters
+      if (this.processedCount === this.rowsToProcess.length) {
+        this.processedCount = 0;
+        this.regexProcessedCount = 0;
+        // Clear previously computed fields if you want a clean rerun:
+        // this.rowsToProcess.forEach(r => { r["Package Quantity"] = ""; r["Unit Count"] = ""; });
+      }
+      // Begin async batch loop
+      this.processNextBatch(this.processedCount); // resume from where left off
+    },
+
+    resumeProcessing() {
+      if (this.isProcessing) return;
+      if (this.processedCount >= this.rowsToProcess.length) return;
+      this.cancelProcessing = false;
+      this.isProcessing = true;
+      this.processNextBatch(this.processedCount);
+    },
+
+    restartProcessing() {
       this.processedCount = 0;
       this.regexProcessedCount = 0;
+      this.rowsToProcess = this.csvData.filter(r => r["Title"]);
+      this.rowsToProcess.forEach(r => {
+        // Optionally wipe previous results
+        r["Package Quantity"] = "";
+        r["Unit Count"] = "";
+      });
+      this.startProcessing();
+    },
 
-      try {
-        for (let i = 0; i < this.rowsToProcess.length; i += this.batchSize) {
-          const batch = this.rowsToProcess.slice(i, i + this.batchSize);
+    cancelProcessingRun() {
+      this.cancelProcessing = true;
+    },
 
-          batch.forEach((row) => {
-            try {
-              const regexQuantity = this.extractQuantityFromTitle(row["Title"]);
-              row["Package Quantity"] = regexQuantity;
-              this.regexProcessedCount++;
-              this.processedCount++;
-              // Add column if not present
-              if (!this.columns.includes("Package Quantity")) {
-                this.columns.push("Package Quantity");
-                this.filterOperators["Package Quantity"] = '>';
-                this.filterValues["Package Quantity"] = '';
-              }
-            } catch (err) {
-              row["Package Quantity"] = 1; // fallback
-              this.processedCount++;
-            }
-          });
-
-          // Small delay between batches
-          if (i + this.batchSize < this.rowsToProcess.length) {
-            await new Promise(resolve => setTimeout(resolve, 200));
-          }
-        }
-        // Update filtered data after processing
-        this.filteredData = [...this.csvData];
-        localStorage.setItem("csvData", JSON.stringify(this.csvData));
-        localStorage.setItem("columns", JSON.stringify(this.columns));
-      } catch (err) {
-        this.error = "Processing error: " + err.message;
+    processNextBatch(startIndex) {
+      if (this.cancelProcessing) {
+        this.isProcessing = false;
+        return;
       }
-      this.isProcessing = false;
+      if (startIndex >= this.rowsToProcess.length) {
+        // Done
+        this.isProcessing = false;
+        this.filteredData = [...this.csvData];
+        return;
+      }
+
+      const end = Math.min(startIndex + this.batchSize, this.rowsToProcess.length);
+      const batch = this.rowsToProcess.slice(startIndex, end);
+
+      batch.forEach(row => {
+        try {
+          const title = row["Title"];
+          const { packageQuantity, unitCount } = this.classifyTitle(title);
+          row["Package Quantity"] = packageQuantity;
+          if (unitCount !== null) row["Unit Count"] = unitCount;
+          this.regexProcessedCount++;
+        } catch {
+          row["Package Quantity"] = 1;
+        }
+        this.processedCount++;
+      });
+
+      // Ensure reactive update & yield
+      this.$nextTick(() => {
+        setTimeout(() => {
+          this.processNextBatch(end);
+        }, 0);
+      });
+    },
+
+    parseNumeric(val) {
+      if (val === null || val === undefined) return NaN;
+      if (typeof val === "number") return val;
+      let str = String(val).trim();
+      str = str
+        .replace(/[\$,]/g, '')
+        .replace(/^\((.*)\)$/, '-$1')
+        .replace(/[%]/g, '')
+        .replace(/[^0-9.\-]/g, ' ')
+        .trim()
+        .split(/\s+/)[0];
+      return parseFloat(str);
     },
 
     isNumericColumn(col) {
-      // Heuristic: sample first row, allow Package Quantity, numbers
       if (!this.csvData.length) return false;
-      const val = this.csvData[0][col];
-      if (col.toLowerCase().includes("quantity") || col.toLowerCase().includes("price") || col.toLowerCase().includes("cost") || col.toLowerCase().includes("count") || col.toLowerCase().includes("volume")) {
-        return true;
-      }
-      return typeof val === "number" || (!isNaN(parseFloat(val)) && isFinite(val));
+      if (col.toLowerCase().includes("quantity") || col.toLowerCase().includes("count") ||
+        col.toLowerCase().includes("price") || col.toLowerCase().includes("cost") ||
+        col.toLowerCase().includes("unit")) return true;
+      const sample = this.csvData.slice(0, 10).map(r => this.parseNumeric(r[col]));
+      const numericSamples = sample.filter(v => !isNaN(v));
+      return numericSamples.length >= Math.ceil(sample.length * 0.5);
     },
 
     debounceApplyFilters() {
@@ -448,24 +642,22 @@ export default {
           const operator = this.filterOperators[key];
           let actual = row[key];
           if (this.isNumericColumn(key)) {
-            actual = parseFloat(actual);
-            const value = parseFloat(filterVal);
-            if (isNaN(value)) return true;
+            const actualNum = this.parseNumeric(actual);
+            const value = this.parseNumeric(filterVal);
+            if (isNaN(value) || isNaN(actualNum)) return false;
             switch (operator) {
-              case '>': return actual > value;
-              case '<': return actual < value;
-              case '=': return actual === value;
-              case '>=': return actual >= value;
-              case '<=': return actual <= value;
+              case '>': return actualNum > value;
+              case '<': return actualNum < value;
+              case '=': return actualNum === value;
+              case '>=': return actualNum >= value;
+              case '<=': return actualNum <= value;
               default: return true;
             }
           } else {
-            // Non-numeric: substring match (case-insensitive)
-            return String(actual).toLowerCase().includes(String(filterVal).toLowerCase());
+            return String(actual ?? '').toLowerCase().includes(String(filterVal).toLowerCase());
           }
         });
       });
-      // re-apply sort if exists
       if (this.sortKey) {
         this.sortByColumn(this.sortKey, true);
       }
@@ -482,23 +674,21 @@ export default {
         }
       }
       const modifier = this.sortOrder === 'desc' ? -1 : 1;
-      // Sort filteredData
       this.filteredData = [...this.filteredData].sort((a, b) => {
         let valA = a[key], valB = b[key];
         if (this.isNumericColumn(key)) {
-          valA = parseFloat(valA); valB = parseFloat(valB);
+          valA = this.parseNumeric(valA); valB = this.parseNumeric(valB);
+          if (isNaN(valA)) valA = -Infinity;
+          if (isNaN(valB)) valB = -Infinity;
           return (valA - valB) * modifier;
         } else {
-          return String(valA).localeCompare(String(valB)) * modifier;
+          return String(valA ?? '').localeCompare(String(valB ?? '')) * modifier;
         }
       });
     },
 
     showMoreRows() {
       this.visibleRows += 50;
-    },
-    resetRows() {
-      this.visibleRows = this.defaultVisibleRows;
     },
 
     isLink(val) {
@@ -512,6 +702,7 @@ export default {
         alert('No results to download');
         return;
       }
+      this.commitEditIfOpen();
       const csv = Papa.unparse(this.filteredData);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
@@ -522,31 +713,90 @@ export default {
       document.body.removeChild(link);
     },
 
-    pushToGoogleSheet() {
-      // Open Google Sheets with the content as a new sheet via CSV upload
-      this.downloadFilteredCSV();
-      window.open("https://docs.google.com/spreadsheets/u/0/", "_blank");
+    /* ---------- Editable Package Quantity Cell Logic ---------- */
+    isEditingCell(row, col) {
+      return this.editing.row === row && this.editing.col === col;
+    },
+
+    enterEdit(row, col) {
+      this.commitEditIfOpen();
+      this.editing.row = row;
+      this.editing.col = col;
+      this.editValue = (row[col] === undefined || row[col] === null || row[col] === "") ? "" : String(row[col]);
+      this.$nextTick(() => {
+        if (this.$refs.activeEditor) {
+          const el = Array.isArray(this.$refs.activeEditor) ? this.$refs.activeEditor[0] : this.$refs.activeEditor;
+          if (el && el.focus) {
+            el.focus();
+            el.select && el.select();
+          }
+        }
+      });
+    },
+
+    sanitizeQuantity(val) {
+      if (val === null || val === undefined) return 1;
+      let s = String(val).trim();
+      if (s === "") return 1;
+      s = s.replace(/[^\d]/g, '');
+      if (s === "") return 1;
+      let n = parseInt(s, 10);
+      if (isNaN(n) || n <= 0) n = 1;
+      if (n > this.config.maxReasonablePackageQty) n = this.config.maxReasonablePackageQty;
+      return n;
+    },
+
+    commitEdit() {
+      if (!this.editing.row || !this.editing.col) return;
+      const row = this.editing.row;
+      const col = this.editing.col;
+      const qty = this.sanitizeQuantity(this.editValue);
+      row[col] = qty;
+      this.cancelEdit();
+      this.applyFilters();
+    },
+
+    commitEditIfOpen() {
+      if (this.editing.row && this.editing.col) {
+        this.commitEdit();
+      }
+    },
+
+    cancelEdit() {
+      this.editing.row = null;
+      this.editing.col = null;
+      this.editValue = "";
+    },
+
+    stepEdit(delta) {
+      let current = this.sanitizeQuantity(this.editValue === "" ? 1 : this.editValue);
+      current += delta;
+      if (current < 1) current = 1;
+      if (current > this.config.maxReasonablePackageQty) current = this.config.maxReasonablePackageQty;
+      this.editValue = String(current);
+    },
+
+    formatPackageQuantity(val) {
+      if (val === undefined || val === null || val === "") return "-";
+      return val;
+    },
+
+    onOutsideClick(e) {
+      if (!this.editing.row) return;
+      const editingEls = this.$refs.activeEditor;
+      if (editingEls) {
+        const el = Array.isArray(editingEls) ? editingEls[0] : editingEls;
+        if (el && !el.contains(e.target)) {
+          this.commitEdit();
+        }
+      }
     },
   },
   mounted() {
-    // Load from localStorage if exists
-    const storedCsv = localStorage.getItem("csvData");
-    const storedCols = localStorage.getItem("columns");
-    if (storedCsv && storedCols) {
-      try {
-        this.csvData = JSON.parse(storedCsv);
-        this.columns = JSON.parse(storedCols);
-        this.rowsToProcess = this.csvData.filter((row) => row["Title"]);
-        this.filterOperators = {};
-        this.filterValues = {};
-        this.columns.forEach(col => {
-          this.filterOperators[col] = this.isNumericColumn(col) ? '>' : '';
-          this.filterValues[col] = '';
-        });
-        this.filteredData = [...this.csvData];
-        this.visibleRows = this.defaultVisibleRows;
-      } catch { }
-    }
+    document.addEventListener("click", this.onOutsideClick);
+  },
+  beforeUnmount() {
+    document.removeEventListener("click", this.onOutsideClick);
   }
 };
 </script>
@@ -580,9 +830,43 @@ export default {
 .table th {
   padding-bottom: 0.75rem !important;
 }
+
 .table-pin-rows thead th {
   position: sticky !important;
   top: 0 !important;
   z-index: 10 !important;
+}
+
+.input:focus {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
+}
+
+/* Optional: if your Tailwind setup doesn't already define animate-blob */
+@keyframes blob {
+
+  0%,
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+
+  33% {
+    transform: translate(30px, -20px) scale(1.05);
+  }
+
+  66% {
+    transform: translate(-20px, 20px) scale(0.95);
+  }
+}
+
+.animate-blob {
+  animation: blob 12s infinite;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
 }
 </style>
