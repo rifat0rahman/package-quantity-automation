@@ -26,7 +26,7 @@
             class="text-5xl md:text-6xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
             Amazon Wholesale</h1>
         </div>
-        <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4">CSV Claude Automation</h2>
+        <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Package Quantity Automation</h2>
         <p class="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
           Transform your product data with AI-powered package quantity detection. Professional-grade automation for
           wholesale businesses.
@@ -34,7 +34,7 @@
         <!-- Stats -->
         <div class="flex flex-wrap justify-center gap-8 mt-8">
           <div class="text-center">
-            <div class="text-3xl font-bold text-blue-600">99.9%</div>
+            <div class="text-3xl font-bold text-blue-600">~90%</div>
             <div class="text-sm text-gray-500">Accuracy</div>
           </div>
           <div class="text-center">
@@ -319,6 +319,8 @@ export default {
         treatBareNumberPackAsMultipack: false,
         maxReasonablePackageQty: 200
       },
+      // Store original base cost per unit
+      originalBaseCosts: {},
       // Inline editing state
       editing: {
         row: null,
@@ -337,12 +339,68 @@ export default {
     }
   },
   methods: {
+    /* ---------- Calculation Helper ---------- */
+  
+    recalcRow(row, originalQtyBeforeEdit = null) {
+      const newQty = this.parseNumeric(row["Package Quantity"]) || 1;
+      console.log("New Package Quantity:", newQty);
+
+      // Create a unique identifier for this row (using ASIN or a combination of fields)
+      const rowId = row["ASIN"] || row["Product ID"] || JSON.stringify(row).slice(0, 50);
+
+      // Store original base cost per unit in a component-level object, not on the row
+      if (!this.originalBaseCosts) {
+        this.originalBaseCosts = {};
+      }
+
+      if (!this.originalBaseCosts[rowId]) {
+        const originalCost = this.parseNumeric(row["Cost"]) || 0;
+        // Use the original quantity BEFORE edit, or fall back to current quantity
+        const originalQty = originalQtyBeforeEdit || newQty || 1;
+        this.originalBaseCosts[rowId] = originalQty > 0 ? originalCost / originalQty : originalCost;
+        console.log("Storing base cost:", this.originalBaseCosts[rowId], "from originalCost:", originalCost, "originalQty:", originalQty);
+      }
+
+      const baseCostPerUnit = this.originalBaseCosts[rowId];
+      console.log("Base Cost Per Unit:", baseCostPerUnit);
+
+      const sellPrice = this.parseNumeric(row["Sell Price"]) || 0;
+      const vat = this.parseNumeric(row["VAT $"]) || 0;
+      const inbound = this.parseNumeric(row["Inbound Shipping Estimate"]) || 0;
+
+      // Calculate derived values
+      const totalCost = baseCostPerUnit * newQty;
+      console.log("New Total Cost:", totalCost);
+      const profit = sellPrice - (totalCost + vat + inbound);
+      const margin = sellPrice ? (profit / sellPrice) * 100 : 0;
+      const roi = totalCost ? (profit / totalCost) * 100 : 0;
+      const breakEvenSellPrice = totalCost + vat + inbound;
+
+      // Format and update row with calculated values
+      row["Cost"] = this.formatCurrency(totalCost);
+      row["Profit"] = this.formatCurrency(profit);
+      row["Margin"] = margin.toFixed(2) + "%";
+      row["ROI"] = roi.toFixed(2) + "%";
+      row["Break Even Sell Price"] = this.formatCurrency(breakEvenSellPrice);
+    },
+
+    // Add this new method after recalcRow:
+    formatCurrency(value) {
+      const abs = Math.abs(value);
+      const formatted = abs.toFixed(2);
+      const sign = value < 0 ? '-' : '';
+
+      // Format as $X.XX or X.XX$ based on original format detection
+      return `${sign}$${formatted}`;
+    },
+
     async onFileChange(e) {
       this.error = "";
       const file = e.target.files[0];
       if (!file) return;
 
       // Reset state
+      this.originalBaseCosts = {};
       this.csvData = [];
       this.columns = [];
       this.rowsToProcess = [];
@@ -365,14 +423,28 @@ export default {
           this.csvData = results.data;
           this.columns = results.meta.fields;
 
-          if (!this.columns.includes("Package Quantity")) {
-            this.columns.push("Package Quantity");
-            this.csvData.forEach(r => { if (r["Package Quantity"] === undefined) r["Package Quantity"] = ""; });
-          }
-          if (!this.columns.includes("Unit Count")) {
-            this.columns.push("Unit Count");
-            this.csvData.forEach(r => { if (r["Unit Count"] === undefined) r["Unit Count"] = ""; });
-          }
+          // Add missing columns if not present
+          const requiredColumns = [
+            "Package Quantity",
+            "Unit Count"
+          ];
+
+          requiredColumns.forEach(col => {
+            if (!this.columns.includes(col)) {
+              this.columns.push(col);
+              this.csvData.forEach(r => {
+                if (r[col] === undefined) r[col] = "";
+              });
+            }
+          });
+
+          // Only set default Package Quantity if empty, DON'T recalculate existing data
+          this.csvData.forEach(row => {
+            if (row["Package Quantity"] === "" || row["Package Quantity"] === undefined || row["Package Quantity"] === null) {
+              row["Package Quantity"] = 1;
+            }
+            // DON'T call recalcRow here - preserve existing CSV values
+          });
 
           this.rowsToProcess = this.csvData.filter((row) => row["Title"]);
 
@@ -586,11 +658,26 @@ export default {
         try {
           const title = row["Title"];
           const { packageQuantity, unitCount } = this.classifyTitle(title);
+
+          // Store original Package Quantity to detect if it changed
+          const originalQty = row["Package Quantity"];
           row["Package Quantity"] = packageQuantity;
           if (unitCount !== null) row["Unit Count"] = unitCount;
+
+          // Only recalculate if Package Quantity actually changed
+          if (originalQty != packageQuantity) {
+            this.recalcRow(row);
+          }
+
           this.regexProcessedCount++;
         } catch {
+          const originalQty = row["Package Quantity"];
           row["Package Quantity"] = 1;
+
+          // Only recalculate if Package Quantity actually changed
+          if (originalQty != 1) {
+            this.recalcRow(row);
+          }
         }
         this.processedCount++;
       });
@@ -621,7 +708,13 @@ export default {
       if (!this.csvData.length) return false;
       if (col.toLowerCase().includes("quantity") || col.toLowerCase().includes("count") ||
         col.toLowerCase().includes("price") || col.toLowerCase().includes("cost") ||
-        col.toLowerCase().includes("unit")) return true;
+        col.toLowerCase().includes("unit") || col.toLowerCase().includes("profit") ||
+        col.toLowerCase().includes("margin") || col.toLowerCase().includes("roi") ||
+        col.toLowerCase().includes("break even") || col.toLowerCase().includes("sales") ||
+        col.toLowerCase().includes("rank") || col.toLowerCase().includes("vat") ||
+        col.toLowerCase().includes("shipping") || col.toLowerCase().includes("weight") ||
+        col.toLowerCase().includes("rate") || col.toLowerCase().includes("reviews") ||
+        col.toLowerCase().includes("ratings") || col.toLowerCase().includes("offers")) return true;
       const sample = this.csvData.slice(0, 10).map(r => this.parseNumeric(r[col]));
       const numericSamples = sample.filter(v => !isNaN(v));
       return numericSamples.length >= Math.ceil(sample.length * 0.5);
@@ -750,8 +843,16 @@ export default {
       if (!this.editing.row || !this.editing.col) return;
       const row = this.editing.row;
       const col = this.editing.col;
+
+      // Capture the ORIGINAL quantity before updating
+      const originalQty = this.parseNumeric(row[col]) || 1;
+
       const qty = this.sanitizeQuantity(this.editValue);
       row[col] = qty;
+
+      // Pass the original quantity to recalcRow
+      this.recalcRow(row, originalQty);
+
       this.cancelEdit();
       this.applyFilters();
     },
