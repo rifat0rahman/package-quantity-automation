@@ -28,7 +28,7 @@
         </div>
         <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Package Quantity Automation</h2>
         <p class="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-          Transform your product data with AI-powered package quantity detection. Professional-grade automation for
+          Transform your product data with layered Regex-powered package quantity detection. Professional-grade automation for
           wholesale businesses.
         </p>
         <!-- Stats -->
@@ -42,7 +42,7 @@
             <div class="text-sm text-gray-500">Faster</div>
           </div>
           <div class="text-center">
-            <div class="text-3xl font-bold text-pink-600">AI</div>
+            <div class="text-3xl font-bold text-pink-600">Regex</div>
             <div class="text-sm text-gray-500">Powered</div>
           </div>
         </div>
@@ -82,7 +82,7 @@
               <div class="space-y-3">
                 <div class="flex items-center gap-3 text-gray-600">
                   <i class="fas fa-check-circle text-green-500"></i>
-                  <span>AI-powered quantity detection</span>
+                  <span>Regex-powered quantity detection</span>
                 </div>
                 <div class="flex items-center gap-3 text-gray-600">
                   <i class="fas fa-check-circle text-green-500"></i>
@@ -114,7 +114,7 @@
                 <button @click="startProcessing" :disabled="isProcessing || processedCount > 0"
                   class="btn btn-primary btn-md gap-2 px-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 text-white">
                   <i class="fas fa-rocket"></i>
-                  Start AI Processing
+                  Start Processing
                 </button>
                 <button v-if="isProcessing" @click="cancelProcessingRun" class="btn btn-error btn-md text-white gap-2">
                   <i class="fas fa-stop-circle"></i> Cancel
@@ -246,7 +246,7 @@
                 </h3>
               </div>
               <p class="text-gray-600" v-if="isProcessing">
-                AI is analyzing product titles and extracting package quantities...
+                Regex is analyzing product titles and extracting package quantities...
               </p>
               <p v-else class="text-gray-600">
                 Finished: {{ processedCount }} rows processed.
