@@ -659,25 +659,25 @@ export default {
           const title = row["Title"];
           const { packageQuantity, unitCount } = this.classifyTitle(title);
 
-          // Store original Package Quantity to detect if it changed
-          const originalQty = row["Package Quantity"];
+          // Store original Package Quantity BEFORE updating
+          const originalQty = this.parseNumeric(row["Package Quantity"]) || 1;
+
+          // Update Package Quantity
           row["Package Quantity"] = packageQuantity;
           if (unitCount !== null) row["Unit Count"] = unitCount;
 
-          // Only recalculate if Package Quantity actually changed
-          if (originalQty != packageQuantity) {
-            this.recalcRow(row);
-          }
+          // Always recalculate with the original quantity passed
+          this.recalcRow(row, originalQty);
 
           this.regexProcessedCount++;
         } catch {
-          const originalQty = row["Package Quantity"];
+          // Store original Package Quantity BEFORE updating
+          const originalQty = this.parseNumeric(row["Package Quantity"]) || 1;
+
           row["Package Quantity"] = 1;
 
-          // Only recalculate if Package Quantity actually changed
-          if (originalQty != 1) {
-            this.recalcRow(row);
-          }
+          // Always recalculate with the original quantity passed
+          this.recalcRow(row, originalQty);
         }
         this.processedCount++;
       });
