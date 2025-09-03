@@ -47,6 +47,11 @@
             <div class="text-3xl font-bold text-pink-600">Regex</div>
             <div class="text-sm text-gray-500">Powered</div>
           </div>
+          <div class="text-center">
+            <div class="text-3xl font-bold text-green-600">
+              <a href="https://merge-csv-chi.vercel.app/" class="btn btn-info text-white mt-2" target="_blank">Marge App</a>
+            </div>
+          </div>
         </div>
       </div>
 
