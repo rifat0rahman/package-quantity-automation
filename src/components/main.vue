@@ -1,6 +1,7 @@
 <template>
   <div data-theme="light"
-    class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 relative overflow-hidden">
+    class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 relative overflow-x-hidden">
+
     <!-- Animated background elements -->
     <div class="absolute inset-0 opacity-30">
       <div
@@ -28,7 +29,8 @@
         </div>
         <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Package Quantity Automation</h2>
         <p class="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-          Transform your product data with layered Regex-powered package quantity detection. Professional-grade automation for
+          Transform your product data with layered Regex-powered package quantity detection. Professional-grade
+          automation for
           wholesale businesses.
         </p>
         <!-- Stats -->
@@ -130,11 +132,12 @@
               </div>
             </div>
 
-            <div class="overflow-x-auto rounded-xl bg-white shadow-sm" style="position:relative;">
-              <table class="table table-sm table-pin-rows">
-                <thead class="bg-gray-50">
+            <div class="overflow-x-auto rounded-xl bg-white shadow-sm sticky-table-container"
+              style="max-height:70vh; overflow-y: auto;">
+              <table class="table table-sm w-full">
+                <thead class="sticky-header">
                   <tr>
-                    <th v-for="col in columns" :key="col" class="text-gray-700 font-semibold">
+                    <th v-for="col in columns" :key="col" class="text-gray-700 font-semibold bg-gray-50">
                       <div class="flex flex-col items-center space-y-1 w-full">
                         <span @click="sortByColumn(col)" class="cursor-pointer flex items-center gap-1">
                           {{ col }}
@@ -171,8 +174,8 @@
                       <div v-if="col === 'Package Quantity'" class="w-full flex items-center justify-center">
                         <!-- Display Mode -->
                         <div v-if="!isEditingCell(row, col)" @click.stop="enterEdit(row, col)" class="px-2 py-1 rounded cursor-pointer select-none transition
-           hover:bg-blue-100 hover:text-blue-700 font-medium tracking-wide
-           min-w-[3rem] text-center" :title="'Click to edit ' + col">
+       hover:bg-blue-100 hover:text-blue-700 font-medium tracking-wide
+       min-w-[3rem] text-center" :title="'Click to edit ' + col">
                           {{ formatPackageQuantity(row[col]) }}
                         </div>
 
@@ -365,20 +368,28 @@ export default {
       console.log("Base Cost Per Unit:", baseCostPerUnit);
 
       const sellPrice = this.parseNumeric(row["Sell Price"]) || 0;
+      const profit = this.parseNumeric(row["Profit"]) || 0;
       const vat = this.parseNumeric(row["VAT $"]) || 0;
       const inbound = this.parseNumeric(row["Inbound Shipping Estimate"]) || 0;
 
       // Calculate derived values
+      const totalfees = sellPrice - profit- baseCostPerUnit;
       const totalCost = baseCostPerUnit * newQty;
       console.log("New Total Cost:", totalCost);
-      const profit = sellPrice - (totalCost + vat + inbound);
-      const margin = sellPrice ? (profit / sellPrice) * 100 : 0;
-      const roi = totalCost ? (profit / totalCost) * 100 : 0;
+
+      const newProfit = sellPrice - (totalCost + vat + inbound) - totalfees;
+
+      const margin = sellPrice ? (newProfit / sellPrice) * 100 : 0;
+      const roi = totalCost ? (newProfit / totalCost) * 100 : 0;
       const breakEvenSellPrice = totalCost + vat + inbound;
+
+      console.log("New Margin:", margin.toFixed(2), "%");
+      console.log("New ROI:", roi.toFixed(2), "%");
+      console.log("New Break Even Sell Price:", breakEvenSellPrice);
 
       // Format and update row with calculated values
       row["Cost"] = this.formatCurrency(totalCost);
-      row["Profit"] = this.formatCurrency(profit);
+      row["Profit"] = this.formatCurrency(newProfit);
       row["Margin"] = margin.toFixed(2) + "%";
       row["ROI"] = roi.toFixed(2) + "%";
       row["Break Even Sell Price"] = this.formatCurrency(breakEvenSellPrice);
@@ -920,27 +931,44 @@ export default {
   border-radius: 0 6px 6px 0;
 }
 
-.table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  background: #f8f9fa;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.table th {
-  padding-bottom: 0.75rem !important;
-}
-
-.table-pin-rows thead th {
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 10 !important;
-}
 
 .input:focus {
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
 }
+
+.sticky-table-container {
+  position: relative;
+}
+
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(249, 250, 251, 0.95);
+  backdrop-filter: blur(8px);
+  border-bottom: 2px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.sticky-header th {
+  background: rgba(249, 250, 251, 0.95);
+  backdrop-filter: blur(8px);
+}
+
+.sticky-table-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sticky-table-container::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.sticky-table-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
 
 /* Optional: if your Tailwind setup doesn't already define animate-blob */
 @keyframes blob {
