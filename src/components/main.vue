@@ -78,7 +78,7 @@
           <progress class="progress progress-primary w-full h-3" :value="processedCount"
             :max="rowsToProcess.length"></progress>
           <p class="text-sm text-gray-600 mt-2">{{ processedCount }} / {{ rowsToProcess.length }} rows ({{ percentDone
-            }}%)</p>
+          }}%)</p>
         </div>
       </section>
 
