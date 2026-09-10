@@ -1,301 +1,228 @@
 <template>
-  <div data-theme="light"
-    class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 relative overflow-x-hidden">
+  <div data-theme="light" class="min-h-screen bg-gray-100 text-gray-900">
 
-    <!-- Animated background elements -->
-    <div class="absolute inset-0 opacity-30">
-      <div
-        class="absolute top-20 left-20 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl animate-blob">
-      </div>
-      <div
-        class="absolute top-40 right-20 w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-2000">
-      </div>
-      <div
-        class="absolute bottom-20 left-40 w-72 h-72 bg-pink-200 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-4000">
-      </div>
-    </div>
-
-    <div class="relative z-10 flex flex-col items-center py-10 px-4">
-      <!-- Hero Header -->
-      <div class="text-center mb-12">
-        <div class="inline-flex items-center gap-3 mb-4">
-          <div
-            class="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-            <i class="fas fa-robot text-white text-xl"></i>
+    <!-- ===== Top Bar ===== -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-30">
+      <div class="mx-auto w-full px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
+            <span class="text-white font-bold text-lg">Q</span>
           </div>
-          <h1
-            class="text-5xl md:text-6xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-            Amazon Wholesale</h1>
+          <div>
+            <h1 class="text-base font-semibold leading-tight">Package Quantity Automation</h1>
+            <p class="text-xs text-gray-500">Amazon wholesale product data processing</p>
+          </div>
         </div>
-        <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Package Quantity Automation</h2>
-        <p class="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-          Transform your product data with layered Regex-powered package quantity detection. Professional-grade
-          automation for
-          wholesale businesses.
-        </p>
-        <!-- Stats -->
-        <div class="flex flex-wrap justify-center gap-8 mt-8">
-          <div class="text-center">
-            <div class="text-3xl font-bold text-blue-600">~90%</div>
-            <div class="text-sm text-gray-500">Accuracy</div>
-          </div>
-          <div class="text-center">
-            <div class="text-3xl font-bold text-purple-600">10x</div>
-            <div class="text-sm text-gray-500">Faster</div>
-          </div>
-          <div class="text-center">
-            <div class="text-3xl font-bold text-pink-600">Regex</div>
-            <div class="text-sm text-gray-500">Powered</div>
-          </div>
-          <div class="text-center">
-            <div class="text-3xl font-bold text-green-600">
-              <a href="https://merge-csv-chi.vercel.app/" class="btn btn-info text-white mt-2" target="_blank">Merge App</a>
-            </div>
-          </div>
+        <a href="https://merge-csv-chi.vercel.app/" target="_blank" class="btn btn-sm btn-outline">Merge CSV App</a>
+      </div>
+    </header>
+
+    <main class="mx-auto w-full px-4 py-6">
+
+      <!-- ===== Stepper ===== -->
+      <div class="flex items-center gap-2 mb-6 flex-wrap">
+        <div v-for="(s, i) in steps" :key="s.num" class="flex items-center gap-2">
+          <button @click="goToStep(s.num)" :class="stepClass(s.num)"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors">
+            <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+              :class="stepCircleClass(s.num)">{{ s.num }}</span>
+            {{ s.label }}
+          </button>
+          <span v-if="i < steps.length - 1" class="text-gray-300">›</span>
         </div>
       </div>
 
-      <!-- Main Processing Card -->
-      <div class="card w-full  bg-white/80 backdrop-blur-xl shadow-2xl border border-gray-200/50">
-        <div class="card-body p-8">
+      <!-- ===== Step 1: Upload ===== -->
+      <section v-if="activeStep === 1" class="bg-white rounded-xl border border-gray-200 p-8">
+        <div class="max-w-xl mx-auto text-center">
+          <div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span class="text-3xl">📄</span>
+          </div>
+          <h2 class="text-2xl font-semibold mb-2">Upload your CSV</h2>
+          <p class="text-gray-600 mb-6">Select a product CSV file to begin. Package quantities will be auto-detected
+            from product titles.</p>
 
-          <!-- Upload Section -->
-          <div class="grid md:grid-cols-2 gap-8 mb-8">
-            <div class="space-y-4">
-              <div class="flex items-center gap-3 mb-4">
-                <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <i class="fas fa-upload text-blue-600"></i>
-                </div>
-                <h3 class="text-xl font-bold text-gray-800">Upload Your CSV</h3>
-              </div>
+          <label class="block cursor-pointer">
+            <input type="file" accept=".csv" @change="onFileChange" class="hidden" />
+            <span class="btn btn-primary btn-lg w-full">Choose CSV File</span>
+          </label>
+          <p class="text-xs text-gray-400 mt-3">Supports standard Amazon wholesale CSV exports</p>
+        </div>
+      </section>
 
-              <div class="form-control">
-                <label class="label">
-                  <span class="label-text text-gray-700 font-medium">Select CSV File</span>
-                </label>
-                <div class="relative">
-                  <input type="file" accept=".csv" @change="onFileChange"
-                    class="file-input file-input-bordered file-input-primary w-full bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100 transition-all duration-300" />
-                  <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <i class="fas fa-file-csv text-primary"></i>
-                  </div>
-                </div>
-              </div>
+      <!-- ===== Step 2: Process ===== -->
+      <section v-if="activeStep === 2" class="space-y-4">
+        <div class="bg-white rounded-xl border border-gray-200 p-6">
+          <div class="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <h2 class="text-xl font-semibold">Ready to process</h2>
+              <p class="text-gray-600 text-sm mt-1">
+                <span class="font-medium text-gray-800">{{ fileName }}</span> — {{ csvData.length }} rows loaded
+              </p>
             </div>
+            <button @click="startProcessing" :disabled="isProcessing" class="btn btn-primary btn-lg gap-2">
+              <span v-if="!isProcessing">▶</span>
+              <span v-else class="loading loading-spinner loading-sm"></span>
+              {{ isProcessing ? 'Processing…' : 'Detect Package Quantities' }}
+            </button>
+          </div>
+        </div>
 
-            <!-- Features -->
-            <div class="space-y-3">
-              <h4 class="font-semibold text-gray-800 mb-4">✨ What you get:</h4>
-              <div class="space-y-3">
-                <div class="flex items-center gap-3 text-gray-600">
-                  <i class="fas fa-check-circle text-green-500"></i>
-                  <span>Regex-powered quantity detection</span>
-                </div>
-                <div class="flex items-center gap-3 text-gray-600">
-                  <i class="fas fa-check-circle text-green-500"></i>
-                  <span>Batch processing optimization</span>
-                </div>
-                <div class="flex items-center gap-3 text-gray-600">
-                  <i class="fas fa-check-circle text-green-500"></i>
-                  <span>Error handling & fallbacks</span>
-                </div>
-                <div class="flex items-center gap-3 text-gray-600">
-                  <i class="fas fa-check-circle text-green-500"></i>
-                  <span>Instant CSV download</span>
-                </div>
-              </div>
-            </div>
+        <!-- Progress -->
+        <div v-if="isProcessing || isProcessed" class="bg-white rounded-xl border border-gray-200 p-6">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold">{{ isProcessing ? 'Processing…' : 'Processing complete' }}</h3>
+            <button v-if="isProcessing" @click="cancelProcessingRun"
+              class="btn btn-sm btn-outline btn-error">Cancel</button>
+          </div>
+          <progress class="progress progress-primary w-full h-3" :value="processedCount"
+            :max="rowsToProcess.length"></progress>
+          <p class="text-sm text-gray-600 mt-2">{{ processedCount }} / {{ rowsToProcess.length }} rows ({{ percentDone
+            }}%)</p>
+        </div>
+      </section>
+
+      <!-- ===== Step 3 & 4: Review ===== -->
+      <section v-if="activeStep >= 3" class="space-y-4">
+        <!-- Stats bar -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="bg-white rounded-xl border border-gray-200 p-4">
+            <div class="text-2xl font-bold text-gray-900">{{ stats.total }}</div>
+            <div class="text-sm text-gray-500">Total rows</div>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-200 p-4">
+            <div class="text-2xl font-bold text-blue-600">{{ stats.auto }}</div>
+            <div class="text-sm text-gray-500">Auto-detected</div>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-200 p-4">
+            <div class="text-2xl font-bold text-amber-600">{{ stats.edited }}</div>
+            <div class="text-sm text-gray-500">Manually edited</div>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-200 p-4">
+            <div class="text-2xl font-bold text-green-600">{{ stats.unchanged }}</div>
+            <div class="text-sm text-gray-500">Unchanged</div>
+          </div>
+        </div>
+
+        <!-- Review controls -->
+        <div class="bg-white rounded-xl border border-gray-200 p-4">
+          <div class="flex flex-wrap items-center gap-3">
+            <!-- Global search -->
+            <input v-model="globalSearch" @input="debounceApplyFilters"
+              class="input input-bordered input-sm w-64 bg-white text-gray-900" placeholder="Search all columns…" />
+
+            <!-- Status filter -->
+            <select v-model="statusFilter" @change="applyFilters"
+              class="select select-bordered select-sm bg-white text-gray-900">
+              <option value="">All statuses</option>
+              <option value="auto">Auto-detected</option>
+              <option value="edited">Manually edited</option>
+              <option value="unchanged">Unchanged</option>
+            </select>
+
+            <div class="flex-1"></div>
+
+            <button @click="downloadFilteredCSV" class="btn btn-success btn-sm gap-2">
+              <span>⬇</span> Download CSV
+            </button>
           </div>
 
-          <!-- Preview Section -->
-          <div v-if="csvData.length" class="mb-8">
-            <div class="flex items-center justify-between mb-4 flex-wrap gap-4">
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <i class="fas fa-table text-purple-600"></i>
-                </div>
-                <h3 class="text-xl font-bold text-gray-800">Data Preview</h3>
-                <div class="badge badge-primary text-white">{{ csvData.length }} rows</div>
-              </div>
-              <div class="flex items-center gap-3">
-                <button @click="startProcessing" :disabled="isProcessing || processedCount > 0"
-                  class="btn btn-primary btn-md gap-2 px-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 text-white">
-                  <i class="fas fa-rocket"></i>
-                  Start Processing
-                </button>
-                <button v-if="isProcessing" @click="cancelProcessingRun" class="btn btn-error btn-md text-white gap-2">
-                  <i class="fas fa-stop-circle"></i> Cancel
-                </button>
-                <button v-if="!isProcessing && processedCount > 0 && processedCount < rowsToProcess.length"
-                  @click="resumeProcessing" class="btn btn-warning btn-md text-white gap-2">
-                  <i class="fas fa-play"></i> Resume
-                </button>
-                <button v-if="!isProcessing && processedCount === rowsToProcess.length && rowsToProcess.length"
-                  @click="restartProcessing" class="btn btn-outline btn-md gap-2">
-                  <i class="fas fa-undo"></i> Re-run
-                </button>
-              </div>
+          <!-- Column toggles -->
+          <div class="mt-3 pt-3 border-t border-gray-100">
+            <div class="flex flex-wrap gap-2">
+              <button v-for="col in columns" :key="col" @click="toggleColumn(col)"
+                :class="visibleColumns[col] !== false ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-gray-500 border-gray-200'"
+                class="px-2 py-1 rounded text-xs border">
+                {{ col }}
+              </button>
             </div>
+          </div>
+        </div>
 
-            <div class="overflow-x-auto rounded-xl bg-white shadow-sm sticky-table-container"
-              style="max-height:70vh; overflow-y: auto;">
-              <table class="table table-sm w-full">
-                <thead class="sticky-header">
-                  <tr>
-                    <th v-for="col in columns" :key="col" class="text-gray-700 font-semibold bg-gray-50">
-                      <div class="flex flex-col items-center space-y-1 w-full">
-                        <span @click="sortByColumn(col)" class="cursor-pointer flex items-center gap-1">
-                          {{ col }}
-                          <span v-if="sortKey === col" class="ml-1">
-                            {{ sortOrder === 'asc' ? '▲' : '▼' }}
-                          </span>
-                        </span>
-                        <div v-if="isNumericColumn(col)" class="flex items-center filter-group">
-                          <select v-model="filterOperators[col]"
-                            class="filter-operator bg-gray-100 border border-gray-300 rounded-l text-xs px-2 py-1">
-                            <option value=">">&gt;</option>
-                            <option value="<">&lt;</option>
-                            <option value="=">=</option>
-                            <option value=">=">&gt;=</option>
-                            <option value="<=">&lt;=</option>
-                          </select>
-                          <input v-model="filterValues[col]" @input="debounceApplyFilters"
-                            class="filter-value border border-l-0 border-gray-300 rounded-r text-xs px-2 py-1 w-16 focus:outline-none"
-                            placeholder="Value">
-                        </div>
-                        <div v-else class="flex items-center filter-group">
-                          <input v-model="filterValues[col]" @input="debounceApplyFilters"
-                            class="filter-value border border-gray-300 rounded text-xs px-2 py-1 w-20 focus:outline-none"
-                            placeholder="Filter">
-                        </div>
-                      </div>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(row, idx) in paginatedFilteredData" :key="idx" class="hover:bg-blue-50 transition-colors">
-                    <td v-for="col in columns" :key="col" class="text-gray-600">
-                      <!-- Only Package Quantity is editable -->
-                      <div v-if="col === 'Package Quantity'" class="w-full flex items-center justify-center">
-                        <!-- Display Mode -->
-                        <div v-if="!isEditingCell(row, col)" @click.stop="enterEdit(row, col)" class="px-2 py-1 rounded cursor-pointer select-none transition
-       hover:bg-blue-100 hover:text-blue-700 font-medium tracking-wide
-       min-w-[3rem] text-center" :title="'Click to edit ' + col">
-                          {{ formatPackageQuantity(row[col]) }}
-                        </div>
-
-                        <!-- Edit Mode -->
-                        <div v-else class="flex items-center gap-1">
-                          <input ref="activeEditor" v-model="editValue" @keydown.enter.prevent="commitEdit()"
-                            @keydown.esc.prevent="cancelEdit" @keydown.arrow-up.prevent="stepEdit(1)"
-                            @keydown.arrow-down.prevent="stepEdit(-1)" @blur="commitEdit" type="text"
-                            inputmode="numeric"
-                            class="input input-xs input-bordered w-20 text-center font-semibold tracking-wide"
-                            :placeholder="row[col] ? row[col] : '1'" />
-                          <div class="flex flex-col -space-y-0.5">
-                            <button type="button" class="btn btn-[6px] btn-ghost p-0 h-3 leading-none"
-                              style="min-height:0;height:14px;" @mousedown.prevent="stepEdit(1)" :title="'Increase'">
-                              <i class="fas fa-chevron-up text-[10px]"></i>
-                            </button>
-                            <button type="button" class="btn btn-[6px] btn-ghost p-0 h-3 leading-none"
-                              style="min-height:0;height:14px;" @mousedown.prevent="stepEdit(-1)" :title="'Decrease'">
-                              <i class="fas fa-chevron-down text-[10px]"></i>
-                            </button>
-                          </div>
-                          <button type="button" class="btn btn-ghost btn-xs text-green-600"
-                            @mousedown.prevent="commitEdit" :title="'Save'">
-                            <i class="fas fa-check"></i>
-                          </button>
-                          <button type="button" class="btn btn-ghost btn-xs text-red-500"
-                            @mousedown.prevent="cancelEdit" :title="'Cancel'">
-                            <i class="fas fa-times"></i>
-                          </button>
-                        </div>
-                      </div>
-
-                      <!-- Non-editable cells -->
-                      <span v-else-if="isLink(row[col])">
-                        <a :href="row[col]" target="_blank" class="text-blue-600 underline">
-                          {{ row[col] }}
-                        </a>
+        <!-- Table -->
+        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div class="overflow-x-auto" style="max-height:65vh; overflow-y:auto;">
+            <table class="table table-sm w-full">
+              <thead class="sticky top-0 z-30 bg-gray-50">
+                <tr>
+                  <th
+                    class="sticky left-0 z-40 bg-gray-50 w-16 min-w-16 max-w-16 text-center font-semibold text-gray-700">
+                    Status</th>
+                  <th v-for="col in displayColumns" :key="col"
+                    :class="thColClass(col) + ' font-semibold text-gray-700'">
+                    <div class="flex flex-col items-center gap-1 w-full">
+                      <span @click="sortByColumn(col)"
+                        class="cursor-pointer select-none inline-flex items-center gap-1 whitespace-nowrap">
+                        {{ col }}
+                        <span v-if="sortKey === col" class="text-blue-600">{{ sortOrder === 'asc' ? '▲' : '▼' }}</span>
                       </span>
-                      <span v-else>{{ row[col] }}</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div class="mt-4 flex justify-center gap-2">
-              <button class="btn btn-warning text-white btn-sm" @click="showMoreRows"
-                v-if="visibleRows < filteredData.length">
-                See More
-              </button>
-            </div>
-
-            <div class="mt-6 flex justify-center gap-4">
-              <button @click="downloadFilteredCSV"
-                class="btn btn-success btn-lg gap-3 px-8 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 text-white">
-                <i class="fas fa-download"></i>
-                Download Filtered CSV
-              </button>
-            </div>
+                      <div v-if="isNumericColumn(col)" class="flex items-center gap-0.5">
+                        <select v-model="filterOperators[col]" @change="applyFilters"
+                          class="select select-xs select-bordered bg-white text-gray-900 w-10 px-0 text-center">
+                          <option value=">">&gt;</option>
+                          <option value="<">&lt;</option>
+                          <option value="=">=</option>
+                          <option value=">=">&gt;=</option>
+                          <option value="<=">&lt;=</option>
+                        </select>
+                        <input v-model="filterValues[col]" @input="debounceApplyFilters"
+                          class="input input-xs input-bordered bg-white text-gray-900 w-14" placeholder="val" />
+                      </div>
+                      <input v-else v-model="filterValues[col]" @input="debounceApplyFilters"
+                        class="input input-xs input-bordered bg-white text-gray-900 w-24" placeholder="filter" />
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, idx) in paginatedFilteredData" :key="idx" class="group hover:bg-blue-50">
+                  <td class="sticky left-0 z-20 bg-white group-hover:bg-blue-50 w-16 min-w-16 max-w-16 text-center">
+                    <span class="badge badge-sm" :class="statusBadgeClass(getRowStatus(row))">
+                      {{ statusLabel(getRowStatus(row)) }}
+                    </span>
+                  </td>
+                  <td v-for="col in displayColumns" :key="col" :class="tdColClass(col) + ' text-gray-700'">
+                    <!-- Editable Package Quantity -->
+                    <div v-if="col === packageQtyColumn" class="inline-flex items-center gap-1">
+                      <div v-if="!isEditingCell(row, col)" @click.stop="enterEdit(row, col)"
+                        class="px-2 py-0.5 rounded cursor-pointer select-none hover:bg-blue-100 hover:text-blue-700 font-medium text-center min-w-[2.5rem]"
+                        :title="'Click to edit ' + col">
+                        {{ formatPackageQuantity(row[col]) }}
+                      </div>
+                      <div v-else class="flex items-center gap-1">
+                        <input ref="activeEditor" v-model="editValue" @keydown.enter.prevent="commitEdit()"
+                          @keydown.esc.prevent="cancelEdit" @keydown.arrow-up.prevent="stepEdit(1)"
+                          @keydown.arrow-down.prevent="stepEdit(-1)" @blur="commitEdit" type="text" inputmode="numeric"
+                          class="input input-xs input-bordered w-20 text-center font-semibold bg-white text-gray-900" />
+                        <button class="btn btn-ghost btn-xs text-green-600" @mousedown.prevent="commitEdit">✓</button>
+                        <button class="btn btn-ghost btn-xs text-red-500" @mousedown.prevent="cancelEdit">✕</button>
+                      </div>
+                    </div>
+                    <!-- Links -->
+                    <a v-else-if="isLink(row[col])" :href="row[col]" target="_blank"
+                      class="text-blue-600 underline truncate block max-w-[200px]">{{ row[col] }}</a>
+                    <!-- Plain text (title wraps to show full text) -->
+                    <span v-else class="break-words">{{ row[col] }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
-          <!-- Progress Section -->
-          <div v-if="rowsToProcess.length && (isProcessing || processedCount > 0)" class="my-8">
-            <div class="text-center mb-4">
-              <div class="flex items-center justify-center gap-3 mb-4">
-                <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <i :class="['fas', isProcessing ? 'fa-cog fa-spin' : 'fa-check-circle', 'text-orange-600']"></i>
-                </div>
-                <h3 class="text-xl font-bold text-gray-800">
-                  {{ isProcessing ? 'Processing Your Data' : 'Processing Complete' }}
-                </h3>
-              </div>
-              <p class="text-gray-600" v-if="isProcessing">
-                Regex is analyzing product titles and extracting package quantities...
-              </p>
-              <p v-else class="text-gray-600">
-                Finished: {{ processedCount }} rows processed.
-              </p>
-            </div>
-            <div class="max-w-md mx-auto">
-              <progress class="progress progress-primary w-full h-4 mb-3" :value="processedCount"
-                :max="rowsToProcess.length"></progress>
-              <div class="flex justify-between text-sm">
-                <span class="text-gray-500">Progress</span>
-                <span class="text-primary font-semibold">
-                  {{ processedCount }} / {{ rowsToProcess.length }} ({{ percentDone }}%)
-                </span>
-              </div>
-              <div class="text-xs text-gray-500 mt-1">
-                Regex classification count: {{ regexProcessedCount }}
-              </div>
-            </div>
-            <div class="flex justify-center mt-6" v-if="isProcessing">
-              <div class="flex gap-2">
-                <div class="w-3 h-3 bg-blue-500 rounded-full animate-bounce"></div>
-                <div class="w-3 h-3 bg-purple-500 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
-                <div class="w-3 h-3 bg-pink-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Error Section -->
-          <div v-if="error" class="alert alert-error shadow-lg mt-4">
-            <div class="flex items-center gap-3">
-              <i class="fas fa-exclamation-triangle text-xl"></i>
-              <div>
-                <h4 class="font-semibold">Processing Error</h4>
-                <p class="text-sm opacity-80">{{ error }}</p>
-              </div>
-            </div>
+          <div class="p-3 border-t border-gray-100 flex justify-center">
+            <button class="btn btn-outline btn-sm" @click="showMoreRows" v-if="visibleRows < filteredData.length">
+              Show more ({{ filteredData.length - visibleRows }} remaining)
+            </button>
           </div>
         </div>
+      </section>
+
+      <!-- Error -->
+      <div v-if="error" class="alert alert-error mt-4">
+        <span>{{ error }}</span>
       </div>
 
-    </div>
+    </main>
   </div>
 </template>
 
@@ -314,7 +241,7 @@ export default {
       processedCount: 0,
       regexProcessedCount: 0,
       error: "",
-      batchSize: 50, // increased default for efficiency
+      batchSize: 50,
       filterTimeout: null,
       filterOperators: {},
       filterValues: {},
@@ -324,17 +251,27 @@ export default {
       visibleRows: 50,
       defaultVisibleRows: 50,
       config: {
-        treatBareNumberPackAsMultipack: false,
+        treatBareNumberPackAsMultipack: true,
         maxReasonablePackageQty: 200
       },
-      // Store original base cost per unit
       originalBaseCosts: {},
-      // Inline editing state
-      editing: {
-        row: null,
-        col: null
-      },
-      editValue: ""
+      editing: { row: null, col: null },
+      editValue: "",
+      titleColumn: null,
+      packageQtyColumn: null,
+      costColumn: null,
+      rowStatus: {},
+      visibleColumns: {},
+      globalSearch: "",
+      statusFilter: "",
+      activeStep: 1,
+      fileName: "",
+      steps: [
+        { num: 1, label: "Upload" },
+        { num: 2, label: "Process" },
+        { num: 3, label: "Review" },
+        { num: 4, label: "Export" }
+      ]
     };
   },
   computed: {
@@ -344,69 +281,125 @@ export default {
     percentDone() {
       if (!this.rowsToProcess.length) return 0;
       return ((this.processedCount / this.rowsToProcess.length) * 100).toFixed(1);
+    },
+    stats() {
+      const total = this.csvData.length;
+      const auto = Object.values(this.rowStatus).filter(s => s === 'auto').length;
+      const edited = Object.values(this.rowStatus).filter(s => s === 'edited').length;
+      const unchanged = Object.values(this.rowStatus).filter(s => s === 'unchanged').length;
+      return { total, auto, edited, unchanged };
+    },
+    displayColumns() {
+      const priority = [
+        this.packageQtyColumn,
+        this.titleColumn,
+        this.costColumn,
+        "Profit", "Margin", "ROI", "Sell Price", "Break Even Sell Price",
+        "Bought In Past Month", "Est Sales", "Sales Rank", "Category", "Brand", "ASIN"
+      ];
+      const ordered = [];
+      priority.forEach(c => {
+        if (c && this.columns.includes(c) && !ordered.includes(c)) ordered.push(c);
+      });
+      this.columns.forEach(c => {
+        if (!ordered.includes(c)) ordered.push(c);
+      });
+      return ordered.filter(c => this.visibleColumns[c] !== false);
+    },
+    hasData() { return this.csvData.length > 0; },
+    isProcessed() { return this.processedCount > 0; },
+    isComplete() {
+      return this.processedCount === this.rowsToProcess.length && this.rowsToProcess.length > 0;
     }
   },
   methods: {
-    /* ---------- Calculation Helper ---------- */
-  
-    recalcRow(row, originalQtyBeforeEdit = null) {
-      const newQty = this.parseNumeric(row["Package Quantity"]) || 1;
-      console.log("New Package Quantity:", newQty);
+    stepClass(num) {
+      const base = "border";
+      if (num === this.activeStep) return base + " border-blue-500 bg-blue-50 text-blue-700";
+      if (num < this.activeStep) return base + " border-green-300 bg-green-50 text-green-700";
+      return base + " border-gray-200 text-gray-400";
+    },
+    stepCircleClass(num) {
+      if (num === this.activeStep) return "bg-blue-600 text-white";
+      if (num < this.activeStep) return "bg-green-500 text-white";
+      return "bg-gray-200 text-gray-500";
+    },
+    statusBadgeClass(status) {
+      return {
+        auto: 'badge-info',
+        edited: 'badge-warning',
+        unchanged: 'badge-success',
+        pending: 'badge-ghost'
+      }[status] || 'badge-ghost';
+    },
+    thColClass(col) {
+      if (col === this.packageQtyColumn) return 'sticky left-16 z-40 bg-gray-50 w-28 min-w-28 max-w-28 text-center';
+      if (col === this.titleColumn) return 'sticky left-[176px] z-40 bg-gray-50 w-[360px] min-w-[360px] max-w-[360px]';
+      return '';
+    },
+    tdColClass(col) {
+      if (col === this.packageQtyColumn) return 'sticky left-16 z-20 bg-white group-hover:bg-blue-50 w-28 min-w-28 max-w-28 whitespace-nowrap';
+      if (col === this.titleColumn) return 'sticky left-[176px] z-20 bg-white group-hover:bg-blue-50 w-[360px] min-w-[360px] max-w-[360px] whitespace-normal align-top';
+      return 'whitespace-nowrap';
+    },
+    detectColumns() {
+      this.titleColumn = this.columns.find(col =>
+        col.toLowerCase().includes('title') ||
+        col.toLowerCase().includes('description') ||
+        col.toLowerCase().includes('product name')
+      ) || 'Title';
 
-      // Create a unique identifier for this row (using ASIN or a combination of fields)
+      this.packageQtyColumn = this.columns.find(col =>
+        col.toLowerCase().includes('package qty') ||
+        col.toLowerCase().includes('package quantity') ||
+        col.toLowerCase().includes('qty') ||
+        col.toLowerCase().includes('quantity')
+      ) || 'Package Quantity';
+
+      this.costColumn = this.columns.find(col =>
+        col.toLowerCase().includes('cost') ||
+        col.toLowerCase().includes('unit cost') ||
+        col.toLowerCase().includes('price')
+      ) || 'Cost';
+    },
+
+    recalcRow(row, originalQtyBeforeEdit = null) {
+      const newQty = this.parseNumeric(row[this.packageQtyColumn]) || 1;
       const rowId = row["ASIN"] || row["Product ID"] || JSON.stringify(row).slice(0, 50);
 
-      // Store original base cost per unit in a component-level object, not on the row
-      if (!this.originalBaseCosts) {
-        this.originalBaseCosts = {};
-      }
+      if (!this.originalBaseCosts) this.originalBaseCosts = {};
 
       if (!this.originalBaseCosts[rowId]) {
-        const originalCost = this.parseNumeric(row["Cost"]) || 0;
-        // Use the original quantity BEFORE edit, or fall back to current quantity
+        const originalCost = this.parseNumeric(row[this.costColumn]) || 0;
         const originalQty = originalQtyBeforeEdit || newQty || 1;
         this.originalBaseCosts[rowId] = originalQty > 0 ? originalCost / originalQty : originalCost;
-        console.log("Storing base cost:", this.originalBaseCosts[rowId], "from originalCost:", originalCost, "originalQty:", originalQty);
       }
 
       const baseCostPerUnit = this.originalBaseCosts[rowId];
-      console.log("Base Cost Per Unit:", baseCostPerUnit);
-
       const sellPrice = this.parseNumeric(row["Sell Price"]) || 0;
       const profit = this.parseNumeric(row["Profit"]) || 0;
       const vat = this.parseNumeric(row["VAT $"]) || 0;
       const inbound = this.parseNumeric(row["Inbound Shipping Estimate"]) || 0;
 
-      // Calculate derived values
-      const totalfees = sellPrice - profit- baseCostPerUnit;
+      const totalfees = sellPrice - profit - baseCostPerUnit;
       const totalCost = baseCostPerUnit * newQty;
-      console.log("New Total Cost:", totalCost);
-
       const newProfit = sellPrice - (totalCost + vat + inbound) - totalfees;
 
       const margin = sellPrice ? (newProfit / sellPrice) * 100 : 0;
       const roi = totalCost ? (newProfit / totalCost) * 100 : 0;
       const breakEvenSellPrice = totalCost + vat + inbound;
 
-      console.log("New Margin:", margin.toFixed(2), "%");
-      console.log("New ROI:", roi.toFixed(2), "%");
-      console.log("New Break Even Sell Price:", breakEvenSellPrice);
-
-      // Format and update row with calculated values
-      row["Cost"] = this.formatCurrency(totalCost);
+      row[this.costColumn] = this.formatCurrency(totalCost);
       row["Profit"] = this.formatCurrency(newProfit);
       row["Margin"] = margin.toFixed(2) + "%";
       row["ROI"] = roi.toFixed(2) + "%";
       row["Break Even Sell Price"] = this.formatCurrency(breakEvenSellPrice);
     },
 
-    // Add this new method after recalcRow:
     formatCurrency(value) {
       const abs = Math.abs(value);
       const formatted = abs.toFixed(2);
       const sign = value < 0 ? '-' : '';
-
-      // Format as $X.XX or X.XX$ based on original format detection
       return `${sign}$${formatted}`;
     },
 
@@ -415,7 +408,7 @@ export default {
       const file = e.target.files[0];
       if (!file) return;
 
-      // Reset state
+      this.fileName = file.name;
       this.originalBaseCosts = {};
       this.csvData = [];
       this.columns = [];
@@ -428,9 +421,13 @@ export default {
       this.sortKey = "";
       this.sortOrder = "";
       this.visibleRows = this.defaultVisibleRows;
+      this.rowStatus = {};
+      this.globalSearch = "";
+      this.statusFilter = "";
       this.cancelEdit();
       this.cancelProcessing = false;
       this.isProcessing = false;
+      this.activeStep = 2;
 
       Papa.parse(file, {
         header: true,
@@ -438,13 +435,9 @@ export default {
         complete: (results) => {
           this.csvData = results.data;
           this.columns = results.meta.fields;
+          this.detectColumns();
 
-          // Add missing columns if not present
-          const requiredColumns = [
-            "Package Quantity",
-            "Unit Count"
-          ];
-
+          const requiredColumns = [this.packageQtyColumn, "Unit Count"];
           requiredColumns.forEach(col => {
             if (!this.columns.includes(col)) {
               this.columns.push(col);
@@ -454,19 +447,18 @@ export default {
             }
           });
 
-          // Only set default Package Quantity if empty, DON'T recalculate existing data
           this.csvData.forEach(row => {
-            if (row["Package Quantity"] === "" || row["Package Quantity"] === undefined || row["Package Quantity"] === null) {
-              row["Package Quantity"] = 1;
+            if (row[this.packageQtyColumn] === "" || row[this.packageQtyColumn] === undefined || row[this.packageQtyColumn] === null) {
+              row[this.packageQtyColumn] = 1;
             }
-            // DON'T call recalcRow here - preserve existing CSV values
           });
 
-          this.rowsToProcess = this.csvData.filter((row) => row["Title"]);
+          this.rowsToProcess = this.csvData.filter((row) => row[this.titleColumn]);
 
           this.columns.forEach(col => {
             this.filterOperators[col] = this.isNumericColumn(col) ? '>' : '';
             this.filterValues[col] = '';
+            this.visibleColumns[col] = true;
           });
 
           this.filteredData = [...this.csvData];
@@ -504,9 +496,8 @@ export default {
       const unitCountCandidates = [];
 
       const MAX_QTY = this.config?.maxReasonablePackageQty ?? 200;
-      const HIGH_SANITY_LIMIT = 50; // tighter sanity threshold
+      const HIGH_SANITY_LIMIT = 50;
 
-      // 1. Explicit "pack of N"
       const packOfRegex = /\bpack\s+of\s+(\d+)\b/i;
       const packOfMatch = title.match(packOfRegex);
       if (packOfMatch) {
@@ -514,7 +505,13 @@ export default {
         if (n > 0 && n <= MAX_QTY) multiPackIndicators.push({ value: n, type: "pack_of" });
       }
 
-      // 2. N-pack variants
+      const caseOfRegex = /\b(case|carton|ctn)\s+of\s+(\d+)\b/i;
+      const caseOfMatch = title.match(caseOfRegex);
+      if (caseOfMatch) {
+        const n = +caseOfMatch[2];
+        if (n > 0 && n <= MAX_QTY) multiPackIndicators.push({ value: n, type: "case_of" });
+      }
+
       const nPackRegex = /\b(\d+)\s*-?\s*pack(s)?\b/gi;
       let nMatch;
       while ((nMatch = nPackRegex.exec(title)) !== null) {
@@ -522,7 +519,6 @@ export default {
         if (n > 0 && n <= MAX_QTY) multiPackIndicators.push({ value: n, type: "n_pack" });
       }
 
-      // 3. Word-based
       const wordPackRegex = new RegExp("\\b(" + Object.keys(multipackWordNumbers).join("|") + ")\\s+pack\\b", "i");
       const wordPackMatch = title.match(wordPackRegex);
       if (wordPackMatch) {
@@ -530,16 +526,12 @@ export default {
         if (val > 0 && val <= MAX_QTY) multiPackIndicators.push({ value: val, type: "word_pack" });
       }
 
-      // 4. Exclusions: dimensions/resolutions & part numbers
       const resolutionContextWords = /(display|screen|monitor|resolution|touchscreen|laptop|notebook|camera|pixel|px)\b/;
       const resolutionLike = /\b(\d{3,5})\s*[x×]\s*(\d{3,5})\b/i;
       const isResolution = resolutionLike.test(lower) && resolutionContextWords.test(lower);
 
-      // detect presence of part number marker near a big x-pattern token
       const hasPartNumberMarker = partNumberMarkers.some(m => lower.includes(m));
 
-      // 5. Safer x-pattern (integer x integer), only if NOT a resolution or partnumber context
-      // Allow a small outer dimension (<= MAX_QTY) OR explicit suffix
       const packXPattern = /\b(\d+)\s*[x×]\s*(\d+)(?:\s*(count|ct|pack|packs|pk|pks))?\b/gi;
       if (!isResolution) {
         let xp;
@@ -548,24 +540,17 @@ export default {
           const inner = +xp[2];
           const suffix = xp[3];
 
-          // Reject if looks like model/part number pair (very large) or partnumber marker present
           if (outer >= 1000 || inner >= 1000) continue;
           if (hasPartNumberMarker && (outer > 50 || inner > 50) && !suffix) continue;
-
-          // Reject if outer has 4+ digits (already covered above) or ratio suggests a resolution (outer>=200 && inner>=200)
           if ((outer >= 200 && inner >= 200) && !suffix) continue;
 
           if (outer > 0 && outer <= MAX_QTY) {
             multiPackIndicators.push({ value: outer, type: "x_pattern" });
-            if (suffix) {
-              // treat inner as per-unit count only when suffix shows it's a pack-like context
-              if (inner > 0) unitCountCandidates.push({ value: inner });
-            }
+            if (suffix && inner > 0) unitCountCandidates.push({ value: inner });
           }
         }
       }
 
-      // 6. Unit count words
       const unitRegex = new RegExp("\\b(\\d{1,5})\\s*(" + unitContentWords.join("|") + ")\\b", "gi");
       let uc;
       while ((uc = unitRegex.exec(lower)) !== null) {
@@ -573,14 +558,12 @@ export default {
         if (val > 0) unitCountCandidates.push({ value: val });
       }
 
-      // Determine packageQuantity vs unitCount
       let packageQuantity = 1;
       let unitCount = null;
 
       if (multiPackIndicators.length) {
-        const priority = { pack_of: 1, x_pattern: 2, n_pack: 3, word_pack: 4 };
+        const priority = { pack_of: 1, case_of: 2, x_pattern: 3, n_pack: 4, word_pack: 5 };
         multiPackIndicators.sort((a, b) => priority[a.type] - priority[b.type]);
-
         const chosen = multiPackIndicators[0];
 
         if (chosen.type === "n_pack" &&
@@ -592,6 +575,9 @@ export default {
         } else {
           packageQuantity = chosen.value;
         }
+      } else if (unitCountCandidates.length) {
+        unitCountCandidates.sort((a, b) => b.value - a.value);
+        packageQuantity = unitCountCandidates[0].value;
       }
 
       if (unitCount == null && unitCountCandidates.length) {
@@ -599,9 +585,8 @@ export default {
         unitCount = unitCountCandidates[0].value;
       }
 
-      // Sanity demotions
       if (packageQuantity > HIGH_SANITY_LIMIT &&
-        !['pack_of', 'n_pack', 'word_pack'].includes(multiPackIndicators[0]?.type)) {
+        !['pack_of', 'case_of', 'n_pack', 'word_pack'].includes(multiPackIndicators[0]?.type)) {
         packageQuantity = 1;
       }
       if (packageQuantity > MAX_QTY) {
@@ -614,21 +599,18 @@ export default {
     startProcessing() {
       if (this.isProcessing) return;
       if (!this.rowsToProcess.length) {
-        this.rowsToProcess = this.csvData.filter(r => r["Title"]);
+        this.rowsToProcess = this.csvData.filter(r => r[this.titleColumn]);
         if (!this.rowsToProcess.length) return;
       }
       this.error = "";
       this.cancelProcessing = false;
       this.isProcessing = true;
-      // If re-run, reset counters
+      this.activeStep = 3;
       if (this.processedCount === this.rowsToProcess.length) {
         this.processedCount = 0;
         this.regexProcessedCount = 0;
-        // Clear previously computed fields if you want a clean rerun:
-        // this.rowsToProcess.forEach(r => { r["Package Quantity"] = ""; r["Unit Count"] = ""; });
       }
-      // Begin async batch loop
-      this.processNextBatch(this.processedCount); // resume from where left off
+      this.processNextBatch(this.processedCount);
     },
 
     resumeProcessing() {
@@ -642,10 +624,10 @@ export default {
     restartProcessing() {
       this.processedCount = 0;
       this.regexProcessedCount = 0;
-      this.rowsToProcess = this.csvData.filter(r => r["Title"]);
+      this.rowStatus = {};
+      this.rowsToProcess = this.csvData.filter(r => r[this.titleColumn]);
       this.rowsToProcess.forEach(r => {
-        // Optionally wipe previous results
-        r["Package Quantity"] = "";
+        r[this.packageQtyColumn] = "";
         r["Unit Count"] = "";
       });
       this.startProcessing();
@@ -661,9 +643,9 @@ export default {
         return;
       }
       if (startIndex >= this.rowsToProcess.length) {
-        // Done
         this.isProcessing = false;
         this.filteredData = [...this.csvData];
+        this.activeStep = 4;
         return;
       }
 
@@ -672,33 +654,26 @@ export default {
 
       batch.forEach(row => {
         try {
-          const title = row["Title"];
+          const title = row[this.titleColumn];
           const { packageQuantity, unitCount } = this.classifyTitle(title);
+          const originalQty = this.parseNumeric(row[this.packageQtyColumn]) || 1;
 
-          // Store original Package Quantity BEFORE updating
-          const originalQty = this.parseNumeric(row["Package Quantity"]) || 1;
-
-          // Update Package Quantity
-          row["Package Quantity"] = packageQuantity;
+          row[this.packageQtyColumn] = packageQuantity;
           if (unitCount !== null) row["Unit Count"] = unitCount;
 
-          // Always recalculate with the original quantity passed
           this.recalcRow(row, originalQty);
-
           this.regexProcessedCount++;
+
+          const rowId = row["ASIN"] || row["Product ID"] || JSON.stringify(row).slice(0, 50);
+          this.rowStatus[rowId] = packageQuantity !== originalQty ? 'auto' : 'unchanged';
         } catch {
-          // Store original Package Quantity BEFORE updating
-          const originalQty = this.parseNumeric(row["Package Quantity"]) || 1;
-
-          row["Package Quantity"] = 1;
-
-          // Always recalculate with the original quantity passed
+          const originalQty = this.parseNumeric(row[this.packageQtyColumn]) || 1;
+          row[this.packageQtyColumn] = 1;
           this.recalcRow(row, originalQty);
         }
         this.processedCount++;
       });
 
-      // Ensure reactive update & yield
       this.$nextTick(() => {
         setTimeout(() => {
           this.processNextBatch(end);
@@ -731,9 +706,19 @@ export default {
         col.toLowerCase().includes("shipping") || col.toLowerCase().includes("weight") ||
         col.toLowerCase().includes("rate") || col.toLowerCase().includes("reviews") ||
         col.toLowerCase().includes("ratings") || col.toLowerCase().includes("offers")) return true;
-      const sample = this.csvData.slice(0, 10).map(r => this.parseNumeric(r[col]));
-      const numericSamples = sample.filter(v => !isNaN(v));
+      const sample = this.csvData.slice(0, 20).map(r => this.isNumericValue(r[col]));
+      const numericSamples = sample.filter(v => v);
       return numericSamples.length >= Math.ceil(sample.length * 0.5);
+    },
+
+    // True only when the whole cell value is a number (not just "contains a digit"),
+    // so text columns like Title/ASIN/Brand aren't misclassified as numeric.
+    isNumericValue(val) {
+      if (val === null || val === undefined) return false;
+      const s = String(val).trim();
+      if (s === '') return false;
+      const cleaned = s.replace(/[\$,%()<>]/g, '').replace(/,/g, '').trim();
+      return /\d/.test(cleaned) && /^-?\d*\.?\d*$/.test(cleaned);
     },
 
     debounceApplyFilters() {
@@ -744,28 +729,42 @@ export default {
     },
 
     applyFilters() {
+      const search = this.globalSearch.trim().toLowerCase();
+      const status = this.statusFilter;
       this.filteredData = this.csvData.filter(row => {
-        return this.columns.every(key => {
+        // Status filter
+        if (status && this.getRowStatus(row) !== status) return false;
+        // Global search
+        if (search) {
+          const match = this.columns.some(key => {
+            const val = row[key];
+            return val != null && String(val).toLowerCase().includes(search);
+          });
+          if (!match) return false;
+        }
+        // Per-column filters (operator + value)
+        for (const key of this.columns) {
           const filterVal = this.filterValues[key];
-          if (!filterVal) return true;
+          if (!filterVal) continue;
           const operator = this.filterOperators[key];
-          let actual = row[key];
+          const actual = row[key];
           if (this.isNumericColumn(key)) {
             const actualNum = this.parseNumeric(actual);
             const value = this.parseNumeric(filterVal);
             if (isNaN(value) || isNaN(actualNum)) return false;
             switch (operator) {
-              case '>': return actualNum > value;
-              case '<': return actualNum < value;
-              case '=': return actualNum === value;
-              case '>=': return actualNum >= value;
-              case '<=': return actualNum <= value;
-              default: return true;
+              case '>': if (!(actualNum > value)) return false; break;
+              case '<': if (!(actualNum < value)) return false; break;
+              case '=': if (!(actualNum === value)) return false; break;
+              case '>=': if (!(actualNum >= value)) return false; break;
+              case '<=': if (!(actualNum <= value)) return false; break;
+              default: break;
             }
           } else {
-            return String(actual ?? '').toLowerCase().includes(String(filterVal).toLowerCase());
+            if (!String(actual ?? '').toLowerCase().includes(String(filterVal).toLowerCase())) return false;
           }
-        });
+        }
+        return true;
       });
       if (this.sortKey) {
         this.sortByColumn(this.sortKey, true);
@@ -806,6 +805,10 @@ export default {
       return /^https?:\/\/.+\..+/.test(val.trim());
     },
 
+    toggleColumn(col) {
+      this.visibleColumns[col] = this.visibleColumns[col] === false;
+    },
+
     downloadFilteredCSV() {
       if (!this.filteredData.length) {
         alert('No results to download');
@@ -816,13 +819,13 @@ export default {
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.setAttribute("download", "filtered_products.csv");
+      const baseName = this.fileName || "products.csv";
+      link.setAttribute("download", "filter-" + baseName);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     },
 
-    /* ---------- Editable Package Quantity Cell Logic ---------- */
     isEditingCell(row, col) {
       return this.editing.row === row && this.editing.col === col;
     },
@@ -860,14 +863,14 @@ export default {
       const row = this.editing.row;
       const col = this.editing.col;
 
-      // Capture the ORIGINAL quantity before updating
       const originalQty = this.parseNumeric(row[col]) || 1;
-
       const qty = this.sanitizeQuantity(this.editValue);
       row[col] = qty;
 
-      // Pass the original quantity to recalcRow
       this.recalcRow(row, originalQty);
+
+      const rowId = row["ASIN"] || row["Product ID"] || JSON.stringify(row).slice(0, 50);
+      this.rowStatus[rowId] = 'edited';
 
       this.cancelEdit();
       this.applyFilters();
@@ -898,6 +901,27 @@ export default {
       return val;
     },
 
+    getRowStatus(row) {
+      const rowId = row["ASIN"] || row["Product ID"] || JSON.stringify(row).slice(0, 50);
+      return this.rowStatus[rowId] || 'pending';
+    },
+
+    statusLabel(status) {
+      return {
+        auto: 'Auto',
+        edited: 'Edited',
+        unchanged: 'Same',
+        pending: 'Pending'
+      }[status] || status;
+    },
+
+    goToStep(step) {
+      if (step === 2 && !this.hasData) return;
+      if (step === 3 && !this.isProcessed) return;
+      if (step === 4 && !this.isComplete) return;
+      this.activeStep = step;
+    },
+
     onOutsideClick(e) {
       if (!this.editing.row) return;
       const editingEls = this.$refs.activeEditor;
@@ -907,7 +931,7 @@ export default {
           this.commitEdit();
         }
       }
-    },
+    }
   },
   mounted() {
     document.addEventListener("click", this.onOutsideClick);
@@ -917,90 +941,3 @@ export default {
   }
 };
 </script>
-
-<style scoped>
-.filter-group {
-  width: 100%;
-  justify-content: center;
-}
-
-.filter-operator {
-  min-width: 32px;
-  height: 28px;
-  border-radius: 6px 0 0 6px;
-}
-
-.filter-value {
-  min-width: 40px;
-  height: 28px;
-  border-radius: 0 6px 6px 0;
-}
-
-
-.input:focus {
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
-}
-
-.sticky-table-container {
-  position: relative;
-}
-
-.sticky-header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: rgba(249, 250, 251, 0.95);
-  backdrop-filter: blur(8px);
-  border-bottom: 2px solid #e5e7eb;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.sticky-header th {
-  background: rgba(249, 250, 251, 0.95);
-  backdrop-filter: blur(8px);
-}
-
-.sticky-table-container::-webkit-scrollbar {
-  width: 8px;
-}
-
-.sticky-table-container::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 4px;
-}
-
-.sticky-table-container::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-
-
-/* Optional: if your Tailwind setup doesn't already define animate-blob */
-@keyframes blob {
-
-  0%,
-  100% {
-    transform: translate(0px, 0px) scale(1);
-  }
-
-  33% {
-    transform: translate(30px, -20px) scale(1.05);
-  }
-
-  66% {
-    transform: translate(-20px, 20px) scale(0.95);
-  }
-}
-
-.animate-blob {
-  animation: blob 12s infinite;
-}
-
-.animation-delay-2000 {
-  animation-delay: 2s;
-}
-
-.animation-delay-4000 {
-  animation-delay: 4s;
-}
-</style>
